@@ -51,6 +51,7 @@ services:
       - /app/.next
 
     environment:
+      - NODE_OPTIONS=--max-old-space-size=4096
       - WATCHPACK_POLLING=true
     
     depends_on:

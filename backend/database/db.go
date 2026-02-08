@@ -18,6 +18,7 @@ type ResearchLog struct{
 	ID 			uint 		`gorm::"primaryKey"`
 	SessionID 	string 		`json:"session_id"` //ตรวจว่าคนเดิมทำซ้ำมั้ย
 	CaptchaID 	string		`json:"captcha_id"`
+	CaptchaType string		`json:"captcha_type"`
 	UserInput 	string		`json:"user_input"`
 	IsCorrect 	bool		`json:"is_correct"`
 	TimeTaken	int64		`json:"time_taken"`

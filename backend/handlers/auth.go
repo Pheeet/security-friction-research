@@ -2,14 +2,9 @@ package handlers
 
 import (
 	"backend-api/database"
-	"bytes"
-	"encoding/base64"
-	"net/http"
 	"sync"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"github.com/steambap/captcha"
 )
 
 // ใช้ sync.Map เป็น key => value
@@ -19,41 +14,11 @@ var captchaStore sync.Map
 // Struct สำหรับ รับ ข้อมูลจาก Frontend ตอนตรวจคำตอบ
 type VerifyRequest struct {
 	CaptchaID string `json:"captchaId"`
+	CaptchaType string `json:"captchaType"`
 	Answer  string `json:"answer"` //base 64
 	TimeTaken int64 `json:"timeTaken`
 }
 
-func GenerateCaptcha(c *gin.Context) {
-	// รูปภาพขนาด กว้าง150px สูง 50px
-	data, err := captcha.New(150, 50)
-	if err != nil {
-		c.JSON(500, gin.H{"error": "สร้าง Captch ไม่สำเร็จ"})
-		return
-	}
-
-	//สร้าง ID ประจำตัว TOken
-	realID := uuid.New().String()
-
-	//เก็บลงเซฟ
-	captchaStore.Store(realID,data.Text)
-
-	var buf bytes.Buffer
-	//เขียนรูปภาพลงใน buffer
-	if err := data.WriteImage(&buf); err != nil {
-		c.JSON(500, gin.H{"error": "แปลงรูปภาพไม่สำเร็จ"})
-		return
-	}
-
-	//เก็บคำตอบลงใน memory map base 64
-	imgBase64Str := base64.StdEncoding.EncodeToString(buf.Bytes())
-	finalImageURL := "data:image/png;base64," + imgBase64Str
-
-	//ส่ง JSON กลับไปหา frontend
-	c.JSON(http.StatusOK, gin.H{
-		"captchaId": realID,
-		"image":  finalImageURL, //ส่ง test เฉยๆเดี๋ยวลบ
-	})
-}
 
 func VerifyCaptcha(c *gin.Context){
 	var req VerifyRequest
@@ -62,25 +27,29 @@ func VerifyCaptcha(c *gin.Context){
 		return
 	}
 
-	actualAnswer, ok := captchaStore.Load(req.CaptchaID)
+	if !Store.Verify(req.CaptchaID, req.Answer, true) {
+		
+		// บันทึกว่าผิด
+		database.DB.Create(&database.ResearchLog{
+			CaptchaID:   req.CaptchaID,
+			CaptchaType: req.CaptchaType,
+			UserInput:   req.Answer,
+			IsCorrect:   false,
+			TimeTaken:   req.TimeTaken,
+		})
 
-	if !ok {
-		c.JSON(400,gin.H{"success": false, "message" : "ID ไม่ถูกต้องหรือหมดอายุ"})
+		c.JSON(200, gin.H{"success": false, "message": "Incorrect!"})
+		return
 	}
 
-	isCorrect := (req.Answer == actualAnswer.(string))
-	logEntry := database.ResearchLog{
-		CaptchaID: req.CaptchaID,
-		UserInput: req.Answer,
-		IsCorrect: isCorrect,
-		TimeTaken: req.TimeTaken,
-	}
-	database.DB.Create(&logEntry)
+	// บันทึกว่าถูก
+	database.DB.Create(&database.ResearchLog{
+		CaptchaID:   req.CaptchaID,
+		CaptchaType: req.CaptchaType,
+		UserInput:   req.Answer,
+		IsCorrect:   true,
+		TimeTaken:   req.TimeTaken,
+	})
 
-	if isCorrect{
-		captchaStore.Delete(req.CaptchaID)
-		c.JSON(200, gin.H{"success":true, "message": "Correct!"})
-	}else{
-		c.JSON(200,gin.H{"success":false, "message": "Incorrect!"})
-	}
+	c.JSON(200, gin.H{"success": true, "message": "Correct!"})
 }
