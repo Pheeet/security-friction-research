@@ -1,18 +1,27 @@
 package main
 
 import (
+	"log"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 
 	"backend-api/database"
 	"backend-api/handlers"
 )
 
 func main() {
+	// 1. โหลด .env ก่อน
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 
 	database.ConnectDB()
 
 	r := gin.Default()
+	handlers.InitGoogleAuth() // อ่าน os.Getenv
 
 	// ตั้งค่า CORS ให้ Frontend Port 3000 ยิงเข้ามาได้
 	config := cors.DefaultConfig()
@@ -33,6 +42,13 @@ func main() {
 		// --- login route --
 		api.POST("/login", handlers.LoginHandler)
 		api.POST("/register", handlers.RegisterHandler)
+
+		// --- Google SSO Route --
+		auth := api.Group("/auth")
+		{
+			auth.GET("/google/login", handlers.GoogleLogin)
+			auth.GET("/google/callback", handlers.GoogleCallback)
+		}
 	}
 
 	// รัน Server ที่ Port 8080
