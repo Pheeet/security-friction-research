@@ -17,6 +17,8 @@ func main() {
 	// ตั้งค่า CORS ให้ Frontend Port 3000 ยิงเข้ามาได้
 	config := cors.DefaultConfig()
 	config.AllowOrigins = []string{"http://localhost:3000"}
+	config.AllowCredentials = true
+	config.AddAllowHeaders("Content-Type")
 	r.Use(cors.New(config))
 
 	api := r.Group("/api")

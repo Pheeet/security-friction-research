@@ -24,7 +24,7 @@ export default function CaptchaTest({ type, title }: Props) {
       setStatus(null);
       setInput("");
       
-      const res = await axios.get(`http://localhost:8080/api/captcha?type=${type}`);
+      const res = await axios.get(`http://localhost:8080/api/captcha?type=${type}`, { withCredentials: true });
       setImageURL(res.data.image);
       setCaptchaId(res.data.captchaId);
       setStartTime(Date.now()); // เริ่มจับเวลาใหม่ทุกครั้งที่รีเฟรช
@@ -46,7 +46,7 @@ export default function CaptchaTest({ type, title }: Props) {
         captchaType: type,
         answer: input,
         timeTaken: duration 
-      });
+      }, { withCredentials: true });
 
       setStatus({
         success: res.data.success,
