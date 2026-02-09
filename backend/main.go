@@ -27,6 +27,10 @@ func main() {
 
 		api.GET("/captcha", handlers.GenerateCaptcha)
 		api.POST("/verify", handlers.VerifyCaptcha)
+
+		// --- login route --
+		api.POST("/login", handlers.LoginHandler)
+		api.POST("/register", handlers.RegisterHandler)
 	}
 
 	// รัน Server ที่ Port 8080
