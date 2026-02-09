@@ -6,6 +6,7 @@ import (
 
 	"backend-api/database"
 	"backend-api/handlers"
+	"backend-api/middleware"
 )
 
 func main() {
@@ -20,6 +21,9 @@ func main() {
 	config.AllowCredentials = true
 	config.AddAllowHeaders("Content-Type")
 	r.Use(cors.New(config))
+
+	// ใช้ Session Middleware
+	r.Use(middleware.SessionMiddleware())
 
 	api := r.Group("/api")
 	{

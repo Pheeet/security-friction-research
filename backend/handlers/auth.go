@@ -17,7 +17,7 @@ type VerifyRequest struct {
 	CaptchaID   string `json:"captchaId"`
 	CaptchaType string `json:"captchaType"`
 	Answer      string `json:"answer"` //base 64
-	TimeTaken   int64  `json:"timeTaken`
+	TimeTaken   int64  `json:"timeTaken"`
 }
 
 func VerifyCaptcha(c *gin.Context) {
