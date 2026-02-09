@@ -2,14 +2,10 @@ package handlers
 
 import (
 	"backend-api/database"
-	"bytes"
-	"encoding/base64"
 	"net/http"
 	"sync"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"github.com/steambap/captcha"
 )
 
 // ใช้ sync.Map เป็น key => value
@@ -18,41 +14,10 @@ var captchaStore sync.Map
 
 // Struct สำหรับ รับ ข้อมูลจาก Frontend ตอนตรวจคำตอบ
 type VerifyRequest struct {
-	CaptchaID string `json:"captchaId"`
-	Answer    string `json:"answer"` //base 64
-	TimeTaken int64  `json:"timeTaken`
-}
-
-func GenerateCaptcha(c *gin.Context) {
-	// รูปภาพขนาด กว้าง150px สูง 50px
-	data, err := captcha.New(150, 50)
-	if err != nil {
-		c.JSON(500, gin.H{"error": "สร้าง Captch ไม่สำเร็จ"})
-		return
-	}
-
-	//สร้าง ID ประจำตัว TOken
-	realID := uuid.New().String()
-
-	//เก็บลงเซฟ
-	captchaStore.Store(realID, data.Text)
-
-	var buf bytes.Buffer
-	//เขียนรูปภาพลงใน buffer
-	if err := data.WriteImage(&buf); err != nil {
-		c.JSON(500, gin.H{"error": "แปลงรูปภาพไม่สำเร็จ"})
-		return
-	}
-
-	//เก็บคำตอบลงใน memory map base 64
-	imgBase64Str := base64.StdEncoding.EncodeToString(buf.Bytes())
-	finalImageURL := "data:image/png;base64," + imgBase64Str
-
-	//ส่ง JSON กลับไปหา frontend
-	c.JSON(http.StatusOK, gin.H{
-		"captchaId": realID,
-		"image":     finalImageURL, //ส่ง test เฉยๆเดี๋ยวลบ
-	})
+	CaptchaID   string `json:"captchaId"`
+	CaptchaType string `json:"captchaType"`
+	Answer      string `json:"answer"` //base 64
+	TimeTaken   int64  `json:"timeTaken"`
 }
 
 func VerifyCaptcha(c *gin.Context) {
@@ -61,28 +26,24 @@ func VerifyCaptcha(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "Invalid request"})
 		return
 	}
+	sessionID, _ := c.Get("research_session_id")
 
-	actualAnswer, ok := captchaStore.Load(req.CaptchaID)
+	// บันทึกลง Database True and false
+	isCorrect := Store.Verify(req.CaptchaID, req.Answer, true)
+	database.DB.Create(&database.ResearchLog{
+		SessionID:   sessionID.(string), // <--- บันทึกลง DB ตรงนี้
+		CaptchaID:   req.CaptchaID,
+		CaptchaType: req.CaptchaType,
+		UserInput:   req.Answer,
+		IsCorrect:   isCorrect,
+		TimeTaken:   req.TimeTaken,
+	})
 
-	if !ok {
-		c.JSON(400, gin.H{"success": false, "message": "ID ไม่ถูกต้องหรือหมดอายุ"})
+	if !isCorrect {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "Incorrect!"})
+		return
 	}
-
-	isCorrect := (req.Answer == actualAnswer.(string))
-	logEntry := database.ResearchLog{
-		CaptchaID: req.CaptchaID,
-		UserInput: req.Answer,
-		IsCorrect: isCorrect,
-		TimeTaken: req.TimeTaken,
-	}
-	database.DB.Create(&logEntry)
-
-	if isCorrect {
-		captchaStore.Delete(req.CaptchaID)
-		c.JSON(200, gin.H{"success": true, "message": "Correct!"})
-	} else {
-		c.JSON(200, gin.H{"success": false, "message": "Incorrect!"})
-	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Correct!"})
 }
 
 // 1. สำหรับ Login (ใช้แค่ User/Pass)
@@ -111,7 +72,7 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// TODO: เชื่อมต่อ Database เพื่อตรวจสอบ Username/Password ตรงนี้
+	// TODO: เชื่อมต่อ Database เพื่อตรวจสpheeet@Pheeet-Ubuntu:~/Codework/Research/security-friction-research$ git pull
 	// ตัวอย่าง: if creds.Username == "admin" && creds.Password == "1234" { ... }
 
 	c.JSON(http.StatusOK, gin.H{

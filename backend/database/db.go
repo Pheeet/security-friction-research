@@ -14,18 +14,32 @@ var DB *gorm.DB
 
 //ตารางเก็ฐข้อมูล
 
-type ResearchLog struct{
-	ID 			uint 		`gorm::"primaryKey"`
-	SessionID 	string 		`json:"session_id"` //ตรวจว่าคนเดิมทำซ้ำมั้ย
-	CaptchaID 	string		`json:"captcha_id"`
-	UserInput 	string		`json:"user_input"`
-	IsCorrect 	bool		`json:"is_correct"`
-	TimeTaken	int64		`json:"time_taken"`
+type ResearchLog struct {
+	ID          uint   `gorm:"primaryKey"`
+	SessionID   string `json:"session_id"` //ตรวจว่าคนเดิมทำซ้ำมั้ย
+	CaptchaID   string `json:"captcha_id"`
+	CaptchaType string `json:"captcha_type"`
+	UserInput   string `json:"user_input"`
+	IsCorrect   bool   `json:"is_correct"`
+	TimeTaken   int64  `json:"time_taken"`
 
 	CreatedAt time.Time
 }
 
-func ConnectDB(){
+type User struct {
+	gorm.Model        // เพิ่ม ID, CreatedAt, UpdatedAt, DeletedAt ให้อัตโนมัติ
+	Username   string `gorm:"uniqueIndex;not null" json:"username"` // ห้ามซ้ำ และห้ามว่าง
+	Password   string `json:"-"`                                    // เก็บ Hash (ใส่ - เพื่อไม่ให้ส่งกลับไปหน้าบ้าน)
+	Email      string `gorm:"uniqueIndex;not null" json:"email"`    // ห้ามซ้ำ
+	FullName   string `json:"fullname"`
+	Role       string `gorm:"default:'user'" json:"role"` // default เป็น user (เผื่อมี admin)
+
+	// รองรับ SSO ในอนาคต
+	Provider   string `gorm:"default:'local'" json:"provider"` // local, google
+	ProviderID string `json:"provider_id"`                     // Google ID
+}
+
+func ConnectDB() {
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Bangkok",
 		os.Getenv("DB_HOST"),
@@ -39,12 +53,16 @@ func ConnectDB(){
 
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
-	if err != nil{
-		log.Fatal("Failed to connet to database: ",err)
+	if err != nil {
+		log.Fatal("Failed to connect to database: ", err)
 	}
 
 	log.Println("Connected to Database successfully")
 
-	//สร้างตารางอัตโนมัติ
-	DB.AutoMigrate(&ResearchLog{})
+	// --- แก้ไขตรงนี้: ใส่ &User{} เพิ่มเข้าไป ---
+	// สร้างตารางอัตโนมัติทั้ง ResearchLog และ User
+	err = DB.AutoMigrate(&ResearchLog{}, &User{})
+	if err != nil {
+		log.Fatal("Failed to migrate database: ", err)
+	}
 }
