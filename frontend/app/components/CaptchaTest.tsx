@@ -50,17 +50,22 @@ export default function CaptchaTest({ type, title }: Props) {
 
       setStatus({
         success: res.data.success,
-        message: res.data.message
+        message: res.data.success ? "Correct!" : "Incorrect! Try again..."
       });
 
       if (res.data.success) {
         setTimeout(() => router.push("/"), 1500); 
       } else {
-        fetchCaptcha(); // ผิดแล้วเปลี่ยนโจทย์ให้เลย
+        setInput("");
+        setTimeout(() => {
+            setStatus(null); // เอาข้อความออก
+            fetchCaptcha();  // โหลดรูปใหม่
+        }, 2000); // 2000 = 2 วินาที
       }
 
     } catch (error) {
       console.error("Error verifying:", error);
+      setStatus({ success: false, message: "Error verifying answer" });
     }
   };
 
