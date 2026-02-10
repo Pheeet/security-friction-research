@@ -1,5 +1,5 @@
 # 1. เลือก Base Image: ใช้ Go ที่เสถียร บน Alpine
-FROM golang:1.25.7-alpine3.22
+FROM golang:alpine
 
 # 2. ตั้งโฟลเดอร์ทำงานข้างใน Container
 WORKDIR /app

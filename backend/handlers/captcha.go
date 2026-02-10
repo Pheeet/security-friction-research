@@ -44,14 +44,6 @@ func GenerateCaptcha(c *gin.Context) {
 		driver = mathDriver
 	case "text":
 		driver = textDriver
-	case "slider":
-		// TODO: เดี๋ยวเราจะมาเติม logic Slider ทีหลัง
-		c.JSON(http.StatusOK, gin.H{"type": "slider", "message": "Slider coming soon"})
-		return
-	case "cloudflare":
-		// TODO: ส่ง Site Key กลับไป
-		c.JSON(http.StatusOK, gin.H{"type": "cloudflare", "siteKey": "YOUR_SITE_KEY"})
-		return
 	default:
 		driver = textDriver
 	}

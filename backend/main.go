@@ -16,7 +16,7 @@ func main() {
 	// 1. โหลด .env ก่อน
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Println("Warning: .env file not found. Using system environment variables.")
 	}
 
 	database.ConnectDB()
@@ -43,6 +43,9 @@ func main() {
 		api.GET("/captcha", handlers.GenerateCaptcha)
 		api.POST("/verify", handlers.VerifyCaptcha)
 
+		//slider
+		api.GET("/slider", handlers.GenerateSliderCaptcha)
+		api.POST("/slider/verify", handlers.VerifySlider)
 		// --- login route --
 		api.POST("/login", handlers.LoginHandler)
 		api.POST("/register", handlers.RegisterHandler)

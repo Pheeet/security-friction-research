@@ -21,6 +21,10 @@ export default function Home() {
             <h2 className="text-2xl font-bold mb-2 group-hover:text-green-400">🧮 2. Math CAPTCHA</h2>
             <p className="text-gray-400 text-sm">คิดเลขง่ายๆ (Cognitive Load)</p>
           </Link>
+          <Link href="/captcha/slider" className="group block p-8 bg-gray-800 rounded-2xl border border-gray-700 hover:border-purple-500 transition-all">
+            <h2 className="text-2xl font-bold mb-2 group-hover:text-purple-400">🧩 3. Slider CAPTCHA</h2>
+            <p className="text-gray-400 text-sm">เลื่อนชิ้นจิ๊กซอว์ให้ตรง (Motor Skills)</p>
+          </Link>
         </div>
       </div>
     </main>
