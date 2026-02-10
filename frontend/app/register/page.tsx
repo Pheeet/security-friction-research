@@ -76,7 +76,7 @@ export default function RegisterPage() {
         padding: '3rem', 
         borderRadius: '12px', 
         width: '100%', 
-        maxWidth: '520px', // Register box width
+        maxWidth: '500px', // กว้างกว่า Login นิดหน่อยเพราะข้อมูลเยอะ
         boxShadow: '0 10px 25px rgba(0,0,0,0.05)'
       }}>
         
