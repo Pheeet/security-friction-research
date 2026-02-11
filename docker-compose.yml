@@ -6,11 +6,11 @@ services:
     container_name: nextjs-captcha-db
     restart: always
     environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: research_db
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:${DB_PORT}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -20,9 +20,9 @@ services:
     build: ./backend
     # ตั้งชื่อ Container
     container_name: go-captcha-backend
-    # Map Port 8080:8080
+    # Map Port
     ports:
-      - "8080:8080"
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
     # Hot Reload
     volumes:
       - ./backend:/app
@@ -30,11 +30,12 @@ services:
       - db
     environment:
       - DB_HOST=db
-      - DB_USER=myuser
-      - DB_PASSWORD=mypassword
-      - DB_NAME=research_db
-      - DB_PORT=5432
-      - PORT=8080
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_PORT=${DB_PORT}
+      - PORT=${BACKEND_PORT}
+      - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
 
 
   frontend:
@@ -43,7 +44,7 @@ services:
     container_name: nextjs-captcha-frontend
 
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
     
     volumes:
       - ./frontend:/app
@@ -53,6 +54,7 @@ services:
     environment:
       - NODE_OPTIONS=--max-old-space-size=4096
       - WATCHPACK_POLLING=true
+      - NEXT_PUBLIC_TURNSTILE_SITE_KEY=${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
     
     depends_on:
       - backend-api

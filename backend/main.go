@@ -26,7 +26,9 @@ func main() {
 
 	// ตั้งค่า CORS ให้ Frontend Port 3000 ยิงเข้ามาได้
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:3000"}
+	config.AllowOrigins = []string{"http://localhost:3000","http://127.0.0.1:3000"}
+	config.AllowMethods = []string{"GET", "POST", "OPTIONS"}
+	config.AllowHeaders = []string{"Origin", "Content-Type"}
 	config.AllowCredentials = true
 	config.AddAllowHeaders("Content-Type")
 	r.Use(cors.New(config))
@@ -49,7 +51,6 @@ func main() {
 
 		//cloudflare turnstile
 		api.POST("/turnstile/verify", handlers.VerifyTurnstile)
-
 
 		// --- login route --
 		api.POST("/login", handlers.LoginHandler)
