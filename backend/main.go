@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"math/rand"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -24,7 +23,6 @@ func main() {
 	database.ConnectDB()
 
 	handlers.InitGoogleAuth() // อ่าน os.Getenv
-	rand.Seed(time.Now().UnixNano())
 
 	r := gin.Default()
 
@@ -53,6 +51,9 @@ func main() {
 		//slider
 		api.GET("/slider", handlers.GenerateSliderCaptcha)
 		api.POST("/slider/verify", handlers.VerifySlider)
+
+		//cloudflare turnstile
+		api.POST("/turnstile/verify", handlers.VerifyTurnstile)
 
 		// --- login route --
 		api.POST("/login", handlers.LoginHandler)
