@@ -46,6 +46,11 @@ func main() {
 		//slider
 		api.GET("/slider", handlers.GenerateSliderCaptcha)
 		api.POST("/slider/verify", handlers.VerifySlider)
+
+		//cloudflare turnstile
+		api.POST("/turnstile/verify", handlers.VerifyTurnstile)
+
+
 		// --- login route --
 		api.POST("/login", handlers.LoginHandler)
 		api.POST("/register", handlers.RegisterHandler)

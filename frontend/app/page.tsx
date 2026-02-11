@@ -25,6 +25,10 @@ export default function Home() {
             <h2 className="text-2xl font-bold mb-2 group-hover:text-purple-400">🧩 3. Slider CAPTCHA</h2>
             <p className="text-gray-400 text-sm">เลื่อนชิ้นจิ๊กซอว์ให้ตรง (Motor Skills)</p>
           </Link>
+          <Link href="/captcha/cloudflare" className="group block p-8 bg-gray-800 rounded-2xl border border-gray-700 hover:border-yellow-500 transition-all">
+            <h2 className="text-2xl font-bold mb-2 group-hover:text-yellow-400">🛡️ 4. Cloudflare Turnstile</h2>
+            <p className="text-gray-400 text-sm">CAPTCHA แบบใหม่จาก Cloudflare (Low Friction)</p>
+          </Link>
         </div>
       </div>
     </main>
