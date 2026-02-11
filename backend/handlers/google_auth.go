@@ -3,11 +3,14 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"os"
+	"time"
 
-	"backend-api/database" // import database ของคุณ
+	"backend-api/database"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
@@ -16,36 +19,36 @@ import (
 
 var googleOauthConfig *oauth2.Config
 
-// 1. ตั้งค่า Config (ควรเรียกใช้ใน main.go หรือ init)
+// 1. ตั้งค่า Config (เรียกใช้ใน main.go)
 func InitGoogleAuth() {
 	googleOauthConfig = &oauth2.Config{
-		RedirectURL:  "http://localhost:8080/api/auth/google/callback",
-		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),     // ใส่ใน .env หรือ Hardcode เทสก่อนก็ได้
-		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"), // ใส่ใน .env
+		RedirectURL: "http://localhost:8080/api/auth/google/callback",
+		// --- ใส่ Client ID และ Secret ของคุณตรงนี้ ---
+		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 		Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},
 		Endpoint:     google.Endpoint,
 	}
 }
 
-// 2. Handler สำหรับปุ่ม "Sign in with Google" (พา User ไป Google)
+// 2. Handler สำหรับปุ่ม "Sign in with Google"
 func GoogleLogin(c *gin.Context) {
-	url := googleOauthConfig.AuthCodeURL("random-state") // state ควร gen สุ่มจริงๆ เพื่อความปลอดภัย
+	// สร้าง URL เพื่อส่ง User ไปหน้า Login ของ Google
+	url := googleOauthConfig.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
 // 3. Handler สำหรับรับ Callback จาก Google
 func GoogleCallback(c *gin.Context) {
-	// รับ Code ที่ Google ส่งมา
+
 	code := c.Query("code")
 
-	// เอา Code ไปแลก Token
 	token, err := googleOauthConfig.Exchange(context.Background(), code)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Code exchange failed"})
 		return
 	}
 
-	// เอา Token ไปดึงข้อมูล User
 	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User data fetch failed"})
@@ -53,41 +56,66 @@ func GoogleCallback(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	// อ่านข้อมูล JSON
 	content, _ := io.ReadAll(resp.Body)
+
 	var googleUser struct {
 		ID      string `json:"id"`
 		Email   string `json:"email"`
 		Name    string `json:"name"`
 		Picture string `json:"picture"`
 	}
+
 	json.Unmarshal(content, &googleUser)
 
-	// --- LOGIC เชื่อม DATABASE ตรงนี้ ---
 	var user database.User
 
-	// เช็คว่ามี User คนนี้หรือยัง (เช็คจาก Email)
+	// -----------------------------
+	// ❌ ถ้าไม่มี user → ไป Register
+	// -----------------------------
 	if err := database.DB.Where("email = ?", googleUser.Email).First(&user).Error; err != nil {
-		// ถ้ายังไม่มี -> สร้างใหม่ (Register)
-		user = database.User{
-			Username:   googleUser.Email, // ใช้ Email เป็น Username ไปก่อน
-			Email:      googleUser.Email,
-			FullName:   googleUser.Name,
-			Provider:   "google",
-			ProviderID: googleUser.ID,
-			Password:   "", // SSO ไม่มี Password
-		}
-		database.DB.Create(&user)
-	} else {
-		// ถ้ามีแล้ว -> อัปเดตข้อมูล (เช่น เผื่อเปลี่ยนชื่อ)
-		user.Provider = "google"
-		user.ProviderID = googleUser.ID
-		database.DB.Save(&user)
+
+		registerURL := fmt.Sprintf(
+			"http://localhost:3000/register?provider=google",
+		)
+
+		c.Redirect(http.StatusTemporaryRedirect, registerURL)
+		return
 	}
 
-	// TODO: สร้าง JWT Token ของเว็บเราเอง (Session)
-	// ตอนนี้ให้ Redirect กลับไปหน้า Frontend ก่อน
-	// c.SetCookie("token", "YOUR_JWT_TOKEN", 3600, "/", "localhost", false, true)
+	// -----------------------------
+	// ✅ ถ้ามี user แล้ว → ส่ง Email OTP
+	// -----------------------------
 
-	c.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/")
+	// สร้าง OTP 6 หลัก
+	otp := fmt.Sprintf("%06d", rand.Intn(1000000))
+
+	// สร้าง refCode 4 หลัก
+	refCode := fmt.Sprintf("%04d", rand.Intn(10000))
+
+	user.TwoFACode = otp
+	user.TwoFARef = refCode
+	user.TwoFAExpiry = time.Now().Add(5 * time.Minute)
+
+	database.DB.Save(&user)
+
+	fmt.Printf("Sending Email OTP to %s\n", user.Email)
+
+	// ส่งเมลแบบ goroutine
+	go func(targetEmail, targetOTP, targetRef string) {
+		err := sendEmailOTP(targetEmail, targetOTP, targetRef)
+		if err != nil {
+			fmt.Printf("Error sending email: %v\n", err)
+		} else {
+			fmt.Printf("Email sent successfully to %s\n", targetEmail)
+		}
+	}(user.Email, otp, refCode)
+
+	// Redirect ไปหน้า 2FA challenge แบบ email
+	twoFAURL := fmt.Sprintf(
+		"http://localhost:3000/2fa/challenge?userId=%d&method=email&refCode=%s",
+		user.ID,
+		refCode,
+	)
+
+	c.Redirect(http.StatusTemporaryRedirect, twoFAURL)
 }

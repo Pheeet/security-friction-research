@@ -1,11 +1,19 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function RegisterPage() {
   const router = useRouter();
-  
+  const searchParams = useSearchParams();
+
+  // อ่านค่าจาก query parameter
+  const provider = searchParams.get('provider');
+  const emailFromGoogle = searchParams.get('email');
+  const nameFromGoogle = searchParams.get('name');
+
+  const isGoogleRegister = provider === 'google';
+
   // State สำหรับเก็บข้อมูลฟอร์ม
   const [formData, setFormData] = useState({
     username: '',
@@ -15,7 +23,19 @@ export default function RegisterPage() {
     email: ''
   });
 
-  // ฟังก์ชันอัปเดต State เวลาพิมพ์
+  // เติมค่าจาก Google ถ้ามี
+  useEffect(() => {
+    if (isGoogleRegister) {
+      setFormData(prev => ({
+        ...prev,
+        email: emailFromGoogle || '',
+        fullname: nameFromGoogle || '',
+        username: emailFromGoogle?.split('@')[0] || ''
+      }));
+    }
+  }, [isGoogleRegister, emailFromGoogle, nameFromGoogle]);
+
+  // อัปเดต State เวลาพิมพ์
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -23,13 +43,12 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 1. Validation ฝั่ง Frontend
+    // Validation
     if (formData.password !== formData.confirmPassword) {
       alert("รหัสผ่านไม่ตรงกัน (Passwords do not match)");
       return;
     }
 
-    // 2. ส่งข้อมูลไป Backend
     try {
       const res = await fetch('http://localhost:8080/api/register', {
         method: 'POST',
@@ -38,17 +57,18 @@ export default function RegisterPage() {
           username: formData.username,
           password: formData.password,
           fullname: formData.fullname,
-          email: formData.email
+          email: formData.email,
+          provider: isGoogleRegister ? "google" : "local"
         }),
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        alert(data.message); // แจ้งเตือนสำเร็จ
-        router.push('/login'); // เด้งไปหน้า Login
+        alert(data.message);
+        router.push('/login');
       } else {
-        alert(data.error || 'เกิดข้อผิดพลาดในการสมัครสมาชิก'); // แจ้งเตือน Error จาก Backend
+        alert(data.error || 'เกิดข้อผิดพลาดในการสมัครสมาชิก');
       }
     } catch (error) {
       console.error('Error:', error);
@@ -56,7 +76,6 @@ export default function RegisterPage() {
     }
   };
 
-  // สไตล์สำหรับ Input (จะได้ไม่ต้องเขียนซ้ำ)
   const inputStyle = {
     padding: '12px 16px',
     borderRadius: '6px',
@@ -76,69 +95,104 @@ export default function RegisterPage() {
         padding: '3rem', 
         borderRadius: '12px', 
         width: '100%', 
-        maxWidth: '500px', // กว้างกว่า Login นิดหน่อยเพราะข้อมูลเยอะ
+        maxWidth: '500px',
         boxShadow: '0 10px 25px rgba(0,0,0,0.05)'
       }}>
         
         <h1 style={{ fontSize: '1.8rem', marginBottom: '1.5rem', fontWeight: 'bold', textAlign: 'center', color: '#111827' }}>
           Create Account
         </h1>
+
+        {isGoogleRegister && (
+          <p style={{ textAlign: 'center', color: '#10b981', marginBottom: '1rem' }}>
+            Signing up with Google
+          </p>
+        )}
         
         <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           
-          {/* ชื่อ-นามสกุล */}
-          <div>
-            <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Full Name</label>
-            <input 
-              type="text" name="fullname" placeholder="John Doe" required
-              value={formData.fullname} onChange={handleChange} style={inputStyle}
-            />
-          </div>
+          {/* Full Name (ซ่อนถ้ามาจาก Google) */}
+          {!isGoogleRegister && (
+            <div>
+              <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Full Name</label>
+              <input 
+                type="text"
+                name="fullname"
+                placeholder="John Doe"
+                required
+                value={formData.fullname}
+                onChange={handleChange}
+                style={inputStyle}
+              />
+            </div>
+          )}
 
-          {/* อีเมล */}
-          <div>
-            <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Email Address</label>
-            <input 
-              type="email" name="email" placeholder="john@example.com" required
-              value={formData.email} onChange={handleChange} style={inputStyle}
-            />
-          </div>
+          {/* Email (ซ่อนถ้ามาจาก Google) */}
+          {!isGoogleRegister && (
+            <div>
+              <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Email Address</label>
+              <input 
+                type="email"
+                name="email"
+                placeholder="john@example.com"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                style={inputStyle}
+              />
+            </div>
+          )}
 
-          {/* ชื่อผู้ใช้ */}
+          {/* Username */}
           <div>
             <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Username</label>
             <input 
-              type="text" name="username" placeholder="Username" required
-              value={formData.username} onChange={handleChange} style={inputStyle}
+              type="text"
+              name="username"
+              placeholder="Username"
+              required
+              value={formData.username}
+              onChange={handleChange}
+              style={inputStyle}
             />
           </div>
           
-          {/* รหัสผ่าน และ ยืนยันรหัสผ่าน (วางคู่กันถ้าจอใหญ่ หรือเรียงลงมา) */}
-          <div style={{ display: 'flex', gap: '1rem', flexDirection: 'column' }}> 
-             <div>
-                <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Password</label>
-                <input 
-                  type="password" name="password" placeholder="Password" required
-                  value={formData.password} onChange={handleChange} style={inputStyle}
-                />
-             </div>
-             <div>
-                <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Confirm Password</label>
-                <input 
-                  type="password" name="confirmPassword" placeholder="Confirm Password" required
-                  value={formData.confirmPassword} onChange={handleChange} style={inputStyle}
-                />
-             </div>
+          {/* Password */}
+          <div>
+            <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Password</label>
+            <input 
+              type="password"
+              name="password"
+              placeholder="Password"
+              required
+              value={formData.password}
+              onChange={handleChange}
+              style={inputStyle}
+            />
           </div>
 
-          {/* ปุ่ม Submit */}
+          {/* Confirm Password */}
+          <div>
+            <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Confirm Password</label>
+            <input 
+              type="password"
+              name="confirmPassword"
+              placeholder="Confirm Password"
+              required
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              style={inputStyle}
+            />
+          </div>
+
+          {/* Submit */}
           <button 
             type="submit" 
             style={{ 
               padding: '14px', 
               borderRadius: '6px', 
               border: 'none', 
-              backgroundColor: '#10b981', // สีเขียว Theme เดียวกัน
+              backgroundColor: '#10b981',
               color: 'white',
               fontSize: '1.1rem',
               fontWeight: '600',

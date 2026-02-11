@@ -22,8 +22,7 @@ type ResearchLog struct {
 	UserInput   string `json:"user_input"`
 	IsCorrect   bool   `json:"is_correct"`
 	TimeTaken   int64  `json:"time_taken"`
-
-	CreatedAt time.Time
+	CreatedAt   time.Time
 }
 
 type User struct {
@@ -32,11 +31,16 @@ type User struct {
 	Password   string `json:"-"`                                    // เก็บ Hash (ใส่ - เพื่อไม่ให้ส่งกลับไปหน้าบ้าน)
 	Email      string `gorm:"uniqueIndex;not null" json:"email"`    // ห้ามซ้ำ
 	FullName   string `json:"fullname"`
-	Role       string `gorm:"default:'user'" json:"role"` // default เป็น user (เผื่อมี admin)
 
 	// รองรับ SSO ในอนาคต
 	Provider   string `gorm:"default:'local'" json:"provider"` // local, google
 	ProviderID string `json:"provider_id"`                     // Google ID
+
+	// ---FIeld for 2FA ---
+	TwoFACode      string    `json:"-"` // เก็บเลข OTP
+	TwoFARef       string    `json:"-"` // เก็บ Ref Code (เช่น AB12)
+	TwoFAExpiry    time.Time `json:"-"` // เวลาหมดอายุ OTP
+	IsPushApproved bool      `json:"-"` // สถานะว่ากด Push Approve หรือยัง
 }
 
 func ConnectDB() {
@@ -59,10 +63,6 @@ func ConnectDB() {
 
 	log.Println("Connected to Database successfully")
 
-	// --- แก้ไขตรงนี้: ใส่ &User{} เพิ่มเข้าไป ---
-	// สร้างตารางอัตโนมัติทั้ง ResearchLog และ User
-	err = DB.AutoMigrate(&ResearchLog{}, &User{})
-	if err != nil {
-		log.Fatal("Failed to migrate database: ", err)
-	}
+	// Auto Migrate ตาราง
+	DB.AutoMigrate(&ResearchLog{}, &User{})
 }

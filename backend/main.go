@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -21,16 +22,18 @@ func main() {
 
 	database.ConnectDB()
 
-	r := gin.Default()
 	handlers.InitGoogleAuth() // อ่าน os.Getenv
 
-	// ตั้งค่า CORS ให้ Frontend Port 3000 ยิงเข้ามาได้
+	r := gin.Default()
+
+	// 2. แก้ปัญหา CORS (ให้ Frontend ยิงเข้ามาได้)
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:3000","http://127.0.0.1:3000"}
-	config.AllowMethods = []string{"GET", "POST", "OPTIONS"}
-	config.AllowHeaders = []string{"Origin", "Content-Type"}
+	config.AllowOrigins = []string{"http://localhost:3000", "http://127.0.0.1:3000"}
+	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
+	config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
+	config.ExposeHeaders = []string{"Content-Length"}
 	config.AllowCredentials = true
-	config.AddAllowHeaders("Content-Type")
+	config.MaxAge = 12 * time.Hour
 	r.Use(cors.New(config))
 
 	// ใช้ Session Middleware
@@ -56,12 +59,14 @@ func main() {
 		api.POST("/login", handlers.LoginHandler)
 		api.POST("/register", handlers.RegisterHandler)
 
-		// --- Google SSO Route --
-		auth := api.Group("/auth")
-		{
-			auth.GET("/google/login", handlers.GoogleLogin)
-			auth.GET("/google/callback", handlers.GoogleCallback)
-		}
+		// --- Route Google Auth ---
+		api.GET("/auth/google/login", handlers.GoogleLogin)       // ปุ่มกด Login
+		api.GET("/auth/google/callback", handlers.GoogleCallback) // Google ส่งกลับมาที่นี่
+
+		// --- 2FA Route ---
+		api.POST("/2fa/verify", handlers.Verify2FAHandler)
+		api.GET("/2fa/check-push", handlers.CheckPushStatus)
+		api.GET("/2fa/simulate-push-approve", handlers.SimulatePushApprove)
 	}
 
 	// รัน Server ที่ Port 8080
