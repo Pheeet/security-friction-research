@@ -7,10 +7,12 @@ export default function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // อ่านค่าจาก query parameter
+  // 1. อ่านค่าจาก query parameter
   const provider = searchParams.get('provider');
   const emailFromGoogle = searchParams.get('email');
-  const nameFromGoogle = searchParams.get('name');
+  
+  // 🔥 จุดที่แก้: เปลี่ยนจาก 'name' เป็น 'fullname'
+  const nameFromGoogle = searchParams.get('fullname'); 
 
   const isGoogleRegister = provider === 'google';
 
@@ -23,13 +25,14 @@ export default function RegisterPage() {
     email: ''
   });
 
-  // เติมค่าจาก Google ถ้ามี
+  // 2. เติมค่าจาก Google ถ้ามี
   useEffect(() => {
     if (isGoogleRegister) {
+      // ตรวจสอบว่ามีค่าจริงๆ ถึงจะเซ็ต
       setFormData(prev => ({
         ...prev,
         email: emailFromGoogle || '',
-        fullname: nameFromGoogle || '',
+        fullname: nameFromGoogle || '', // ตอนนี้ค่าจะมาแล้วครับ
         username: emailFromGoogle?.split('@')[0] || ''
       }));
     }
@@ -56,7 +59,8 @@ export default function RegisterPage() {
         body: JSON.stringify({
           username: formData.username,
           password: formData.password,
-          fullname: formData.fullname,
+          // ถ้าเป็น Google แต่ไม่มีชื่อ (กรณีแปลกๆ) ให้ส่งค่าว่างไป หรือส่งค่าที่ user พิมพ์เอง
+          fullname: formData.fullname, 
           email: formData.email,
           provider: isGoogleRegister ? "google" : "local"
         }),
@@ -111,7 +115,15 @@ export default function RegisterPage() {
         
         <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           
-          {/* Full Name (ซ่อนถ้ามาจาก Google) */}
+          {/* 🔥 คำแนะนำเพิ่มเติม: 
+             แม้จะมาจาก Google แต่ถ้า 'fullname' ว่าง (บางที Google ไม่ส่งมา) 
+             เราควรเปิดช่อง Input ให้ User กรอกเองได้ครับ 
+             
+             เปลี่ยนเงื่อนไขจาก !isGoogleRegister เป็น (!isGoogleRegister || !formData.fullname)
+             แต่ถ้าเอาชัวร์ แค่แก้บรรทัด get('fullname') ด้านบนก็น่าจะผ่านแล้วครับ
+          */}
+
+          {/* Full Name */}
           {!isGoogleRegister && (
             <div>
               <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Full Name</label>
@@ -127,7 +139,7 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* Email (ซ่อนถ้ามาจาก Google) */}
+          {/* Email */}
           {!isGoogleRegister && (
             <div>
               <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Email Address</label>

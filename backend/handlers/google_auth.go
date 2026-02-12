@@ -73,9 +73,11 @@ func GoogleCallback(c *gin.Context) {
 	// ❌ ถ้าไม่มี user → ไป Register
 	// -----------------------------
 	if err := database.DB.Where("email = ?", googleUser.Email).First(&user).Error; err != nil {
-
+		// ตรวจสอบบรรทัดที่ Redirect ไปหน้า Register
 		registerURL := fmt.Sprintf(
-			"http://localhost:3000/register?provider=google",
+			"http://localhost:3000/register?provider=google&email=%s&fullname=%s",
+			googleUser.Email,
+			googleUser.Name, // ต้องมั่นใจว่า googleUser.Name มีค่าและถูกแนบไปตรงนี้
 		)
 
 		c.Redirect(http.StatusTemporaryRedirect, registerURL)
