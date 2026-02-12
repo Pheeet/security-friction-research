@@ -34,7 +34,7 @@ function ChallengeContent() {
 
       if (data.success) {
         alert("OTP Verified!");
-        router.push('/captcha/text'); // go to captcha
+        router.push('/'); // go to captcha
       } else {
         alert("Incorrect OTP: " + (data.message || ""));
       }
