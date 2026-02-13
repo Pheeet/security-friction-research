@@ -106,12 +106,12 @@ export default function SliderCaptcha() {
                 <img
                     src={pieceImage}
                     alt="Puzzle Piece"
-                    className="absolute z-10 shadow-[0_0_10px_rgba(0,0,0,0.5)] border border-white/80"
+                    className="absolute z-10 drop-shadow-[0_0_5px_rgba(255,255,255,0.8)] drop-shadow-[0_4px_6px_rgba(0,0,0,0.5)]"
                     style={{
                         top: `${pieceY}px`,      // Y มาจาก Backend
                         left: `${sliderValue}px`, // X มาจาก Slider ที่ User ลาก
-                        width: "50px",           // ต้องตรงกับ Backend
-                        height: "50px",
+                        width: "70px",           // ต้องตรงกับ Backend
+                        height: "70px",
                     }}
                 />
             </div>

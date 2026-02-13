@@ -8,7 +8,7 @@ import (
 	"image/color"
 	"image/draw"
 	"image/jpeg"
-	_ "image/png"
+	"image/png"
 	"math/rand"
 	"net/http"
 	"os"
@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	PuzzleWidth  = 50
-	PuzzleHeight = 50
+	PuzzleWidth  = 70
+	PuzzleHeight = 70
 	BoxWidth     = 300 //จุดแก้ขนาดรูปภาพ
 	BoxHeight    = 150 //จุดแก้ขนาดรูปภาพ
 )
@@ -31,15 +31,24 @@ type SliderResponse struct {
 	OriginalImage string `json:"originalImage"` // รูปพื้นหลัง
 	PuzzlePiece   string `json:"puzzlePiece"`   // ชิ้นจิ๊กซอว์
 	Y             int    `json:"y"`             // ตำแหน่งความสูง
-	Width  int `json:"width"`  // ส่งไปด้วย
-    Height int `json:"height"` // ส่งไปด้วย
+	Width         int    `json:"width"`         // ส่งไปด้วย
+	Height        int    `json:"height"`        // ส่งไปด้วย
 }
 
 func GenerateSliderCaptcha(c *gin.Context) {
 	// 1. เลือกรูปภาพแบบสุ่มจากโฟลเดอร์ assests
 	var allFiles []string
+
+	isMask := func(path string) bool {
+        return filepath.Base(path) == "mask.png"
+    }
+
 	if files, err := filepath.Glob("assets/*.png"); err == nil {
-		allFiles = append(allFiles, files...)
+		for _, f := range files {
+            if !isMask(f) {
+                allFiles = append(allFiles, f)
+            }
+        }
 	}
 	if files, err := filepath.Glob("assets/*.jpg"); err == nil {
 		allFiles = append(allFiles, files...)
@@ -73,9 +82,22 @@ func GenerateSliderCaptcha(c *gin.Context) {
 
 	resizedImg := image.NewRGBA(image.Rect(0, 0, BoxWidth, BoxHeight))
 	draw.Draw(resizedImg, resizedImg.Bounds(), img, image.Point{0, 0}, draw.Src)
-	img = resizedImg
+	img = resizedImg // ตอนนี้ img คือรูปที่ย่อขนาดแล้ว (300x150)
 
-	//3. สุ่มตำแหน่ง X,Y สำหรับชิ้นจิ๊กซอว์
+	// -----------------------------------------------------------
+	// 3. โหลด Mask และคำนวณตำแหน่ง (ทำแค่รอบเดียวพอ)
+	// -----------------------------------------------------------
+	var maskImg image.Image
+	maskFile, err := os.Open("assets/mask.png") // ต้องมั่นใจว่า path ถูก
+	if err == nil {
+
+		defer maskFile.Close() // อย่าลืม defer close
+		maskImg, _, _ = image.Decode(maskFile)
+		fmt.Println("LOAD MASK SUCCESS!")
+	} else {
+		fmt.Println("Warning: mask.png not found, using rectangle fallback.")
+	}
+
 	bounds := img.Bounds()
 	maxX := bounds.Dx() - PuzzleWidth
 	maxY := bounds.Dy() - PuzzleHeight
@@ -85,26 +107,48 @@ func GenerateSliderCaptcha(c *gin.Context) {
 		return
 	}
 
-	targetX := rand.Intn(maxX-60) + 30 // เว้นขอบซ้ายขวา 50px
+	// สุ่มตำแหน่ง X,Y
+	targetX := rand.Intn(maxX-60) + 30
 	targetY := rand.Intn(maxY)
 
-	//4. ตัดชิ้นจิ๊กซอว์ออกจากรูปภาพ
-	//สร้าง rgb ว่างๆ
+	// -----------------------------------------------------------
+	// 4. ตัดชิ้นจิ๊กซอว์ (The Piece)
+	// -----------------------------------------------------------
 	pieceImg := image.NewRGBA(image.Rect(0, 0, PuzzleWidth, PuzzleHeight))
-	//copy จาก xy มาใส่
-	draw.Draw(pieceImg, pieceImg.Bounds(), img, image.Point{X: targetX, Y: targetY}, draw.Src)
 
-	//5. ทำภาพพื้นหลังให้มีรูเจาะ
+	if maskImg != nil {
+		// ใช้ Mask: ตัดรูปจาก img ตรงตำแหน่ง targetX,Y ให้เป็นทรงจิ๊กซอว์
+		draw.DrawMask(pieceImg, pieceImg.Bounds(), img, image.Point{targetX, targetY}, maskImg, image.Point{0, 0}, draw.Over)
+	} else {
+		// Fallback: ตัดสี่เหลี่ยมธรรมดา
+		draw.Draw(pieceImg, pieceImg.Bounds(), img, image.Point{targetX, targetY}, draw.Src)
+	}
+
+	// -----------------------------------------------------------
+	// 5. เจาะรูที่พื้นหลัง (The Hole)
+	// -----------------------------------------------------------
 	bgImg := image.NewRGBA(bounds)
-	draw.Draw(bgImg, bounds, img, image.Point{0, 0}, draw.Src)
-	grayColor := color.RGBA{100, 100, 100, 200}
-	draw.Draw(bgImg, image.Rect(targetX, targetY, targetX+PuzzleWidth, targetY+PuzzleHeight), &image.Uniform{grayColor}, image.Point{}, draw.Over)
+	draw.Draw(bgImg, bounds, img, image.Point{0, 0}, draw.Src) // วาดรูปเต็มก่อน
 
-	//6. แปลงรูปภาพทั้งสองเป็น base64
+	// สร้างสีดำโปร่งแสงสำหรับเงา
+	shadowColor := &image.Uniform{color.RGBA{0, 0, 0, 150}}
+
+	// พื้นที่ที่จะวาดเงา (ตรงตำแหน่ง targetX, targetY)
+	rect := image.Rect(targetX, targetY, targetX+PuzzleWidth, targetY+PuzzleHeight)
+
+	if maskImg != nil {
+		// ใช้ Mask: วาดเงาดำทับลงไปตามทรงจิ๊กซอว์
+		draw.DrawMask(bgImg, rect, shadowColor, image.Point{}, maskImg, image.Point{0, 0}, draw.Over)
+	} else {
+		// Fallback: วาดสี่เหลี่ยมเทา
+		draw.Draw(bgImg, rect, shadowColor, image.Point{}, draw.Over)
+	}
+
+	// 6. แปลงรูปภาพทั้งสองเป็น base64
 	bgBase64 := imgToBase64(bgImg)
-	pieceBase64 := imgToBase64(pieceImg)
+	pieceBase64 := imgToPNGBase64(pieceImg)
 
-	//7. บันทึกลง session
+	// 7. บันทึกลง session
 	sessionID, exists := c.Get("research_session_id")
 	if !exists {
 		sessionID = "Unknown"
@@ -116,8 +160,8 @@ func GenerateSliderCaptcha(c *gin.Context) {
 		OriginalImage: bgBase64,
 		PuzzlePiece:   pieceBase64,
 		Y:             targetY,
-		Width:  BoxWidth,
-    	Height: BoxHeight,
+		Width:         BoxWidth,
+		Height:        BoxHeight,
 	})
 
 }
@@ -127,6 +171,12 @@ func imgToBase64(img image.Image) string {
 	// Quality 90 กำลังดี ชัดและไม่ใหญ่เกินไป
 	jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90})
 	return "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(buf.Bytes())
+}
+
+func imgToPNGBase64(img image.Image) string {
+	var buf bytes.Buffer
+	png.Encode(&buf, img) // 👈 ใช้ PNG แทน JPEG
+	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(buf.Bytes())
 }
 
 // จำคำตอบ Inmemory
