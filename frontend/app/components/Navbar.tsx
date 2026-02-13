@@ -8,7 +8,9 @@ export default function Navbar() {
 
   // 🚫 รายชื่อหน้าที่ "ไม่ต้องการ" ให้โชว์ปุ่ม Logout
   const hiddenPaths = ['/login', '/register', '/2fa'];
-
+    if (hiddenPaths.some((path) => pathname.startsWith(path))) {
+    return null;
+  }
   // เช็คว่า Path ปัจจุบันขึ้นต้นด้วยคำต้องห้ามไหม
   // (เช่น /2fa/challenge ก็จะถือว่าตรงกับ /2fa และถูกซ่อน)
   const shouldHide = hiddenPaths.some((path) => pathname.startsWith(path));
@@ -17,15 +19,23 @@ export default function Navbar() {
     return null; // ไม่แสดงอะไรเลย
   }
 
-  const handleLogout = () => {
-    // 1. ลบ Cookie 'is-logged-in' โดยตั้งอายุให้หมดทันที (Expires in past)
-    document.cookie = "is-logged-in=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
-    
-    // (Optional) ถ้ามี Cookie อื่นๆ เช่น session ของ Backend ก็ลบด้วย
-    // document.cookie = "session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+  const handleLogout = async () => {
+    try {
+      // 1. เรียก API ให้ Server ล้าง Cookie ให้สะอาด
+      await fetch('/api/logout', { method: 'POST' });
 
-    // 2. เด้งกลับไปหน้า Login
-    router.push('/login');
+      // 2. ล้าง Client Router Cache (สำคัญมาก! เพื่อไม่ให้มันจำหน้าเก่า)
+      router.refresh();
+
+      // 3. ส่งกลับไปหน้า Login
+      router.replace('/login'); 
+      
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Fallback: ถ้า API พัง ก็พยายามลบเองแบบเดิม
+      document.cookie = "is-logged-in=; path=/; max-age=0";
+      window.location.href = '/login';
+    }
   };
 
   return (

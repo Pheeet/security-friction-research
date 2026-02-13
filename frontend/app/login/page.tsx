@@ -39,8 +39,9 @@ export default function LoginPage() {
                 router.push(`/2fa/challenge?userId=${data.user_id}&method=${data.method}&refCode=${data.ref_code}`);
             } else {
                 // ถ้าไม่ต้องทำ (เช่น login ครั้งถัดๆ ไป) ก็เข้าหน้าแรกเลย
+                document.cookie = "is-logged-in=true; path=/; max-age=3600";
                 alert('Login สำเร็จ!');
-                router.push('/captcha');
+                router.push('/');
             }
         } else {
             alert(data.error || 'Login ไม่สำเร็จ');

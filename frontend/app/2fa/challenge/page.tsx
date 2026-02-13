@@ -33,6 +33,7 @@ function ChallengeContent() {
       const data = await res.json();
 
       if (data.success) {
+        document.cookie = "is-logged-in=true; path=/; max-age=3600";
         alert("OTP Verified!");
         router.push('/'); // go to captcha
       } else {
