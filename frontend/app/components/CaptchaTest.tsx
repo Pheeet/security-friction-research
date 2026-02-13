@@ -18,6 +18,8 @@ export default function CaptchaTest({ type, title }: Props) {
   const [status, setStatus] = useState<{ success: boolean; message: string } | null>(null);
   const [startTime, setStartTime] = useState<number>(0);
 
+  const [isError, setIsError] = useState(false);
+
   const fetchCaptcha = async () => {
     try {
       setLoading(true);
@@ -56,6 +58,9 @@ export default function CaptchaTest({ type, title }: Props) {
       if (res.data.success) {
         setTimeout(() => router.push("/"), 1500); 
       } else {
+        
+        setIsError(true);
+        setTimeout(() => setIsError(false), 400);
         setInput("");
         setTimeout(() => {
             setStatus(null); // เอาข้อความออก
@@ -66,6 +71,8 @@ export default function CaptchaTest({ type, title }: Props) {
     } catch (error) {
       console.error("Error verifying:", error);
       setStatus({ success: false, message: "Error verifying answer" });
+      setIsError(true);
+      setTimeout(() => setIsError(false), 400);
     }
   };
 
@@ -75,7 +82,7 @@ export default function CaptchaTest({ type, title }: Props) {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-6">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
+      <div className={`max-w-md w-full bg-white rounded-xl shadow-lg p-8 ${isError ? "animate-shake border-2 border-red-400" : ""}`}>
         <h1 className="text-xl font-bold text-center mb-6 text-gray-800">{title}</h1>
         
         {/* ส่วนแสดงผลรูปภาพ + ปุ่ม Refresh */}

@@ -9,6 +9,7 @@ export default function TurnstileCaptcha() {
   const [status, setStatus] = useState<string | null>(null);
   const router = useRouter();
 
+  const [isError, setIsError] = useState(false);
   // 1. Ref สำหรับจับ element ที่จะวาง Widget
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -52,6 +53,9 @@ export default function TurnstileCaptcha() {
               console.error("Backend Error:", res.data);
               setStatus(`Verification Failed: ${res.data.message || "Unknown error"}`);
               
+              setIsError(true); // สั่น
+              setTimeout(() => setIsError(false), 400);
+
               // รีเซ็ตเพื่อให้กดใหม่ได้
               isVerifying.current = false;
               if (widgetId.current) (window as any).turnstile.reset(widgetId.current);
@@ -60,6 +64,9 @@ export default function TurnstileCaptcha() {
             console.error("Axios Network Error:", error);
             setStatus("Cannot connect to Backend (CORS or Network Error)");
             
+            setIsError(true); // สั่น
+            setTimeout(() => setIsError(false), 400);
+
             // รีเซ็ตเพื่อให้กดใหม่ได้
             isVerifying.current = false;
             if (widgetId.current) (window as any).turnstile.reset(widgetId.current);
@@ -69,6 +76,8 @@ export default function TurnstileCaptcha() {
         // กรณี Error จาก Cloudflare เอง
         "error-callback": () => {
           setStatus("Cloudflare Widget Error");
+          setIsError(true); // สั่น
+          setTimeout(() => setIsError(false), 400);
           isVerifying.current = false;
           if (widgetId.current) (window as any).turnstile.reset(widgetId.current);
         },
@@ -84,7 +93,7 @@ export default function TurnstileCaptcha() {
   };
 
   return (
-    <div className="flex flex-col items-center gap-6 p-8 bg-white rounded-xl shadow-2xl">
+    <div className={`flex flex-col items-center gap-6 p-8 bg-white rounded-xl shadow-2xl ${isError ? "animate-shake border-2 border-red-400" : ""}`}>
       <h2 className="text-2xl font-bold text-gray-800">Cloudflare Turnstile</h2>
 
       {/* โหลด Script ของ Cloudflare */}

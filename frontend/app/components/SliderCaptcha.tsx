@@ -15,6 +15,7 @@ export default function SliderCaptcha() {
 
   const [captchaWidth, setCaptchaWidth] = useState<number>(300); 
   const [captchaHeight, setCaptchaHeight] = useState<number>(150);
+  const [isError, setIsError] = useState(false);
 
   const router = useRouter();
 
@@ -66,6 +67,8 @@ export default function SliderCaptcha() {
         setTimeout(() => router.push("/"), 1500); // ผ่านแล้วไปหน้าแรก
       } else {
         setStatus("Incorrect! ❌");
+        setIsError(true);
+        setTimeout(() => setIsError(false), 400);
         // ถ้าผิด ให้รอ 1 วิ แล้วโหลดโจทย์ข้อใหม่ (เพื่อความปลอดภัย)
         setTimeout(() => {
             fetchCaptcha();
@@ -78,7 +81,7 @@ export default function SliderCaptcha() {
   };
 
   return (
-    <div className="flex flex-col items-center gap-6 p-8 bg-white rounded-xl shadow-2xl max-w-md w-full">
+    <div className={`flex flex-col items-center gap-6 p-8 bg-white rounded-xl shadow-2xl max-w-md w-full ${isError ? "animate-shake border-red-500 border-2" : ""}`}>
       <h2 className="text-2xl font-bold text-gray-800">Slider Verification</h2>
       
       {isLoading && !bgImage ? (
