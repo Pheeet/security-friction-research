@@ -2,20 +2,89 @@ package handlers
 
 import (
 	"backend-api/database"
+	"fmt"
 	"image/color"
 	"net/http"
+	"os"
+	"sync"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang/freetype/truetype"
+
 	"github.com/mojocn/base64Captcha"
 )
-
-// ใช้ Store เก็บคำตอบใน Memory
-var Store = base64Captcha.DefaultMemStore
 
 // ใช้ sync.Map เป็น key => value
 // key = capchaId, value
 
 // --- Structs ---
+type DiskFontStore struct{}
+
+// ฟังก์ชันนี้จะถูก Library เรียกใช้อัตโนมัติเมื่อเราส่ง DiskFontStore เข้าไป
+func (s *DiskFontStore) LoadFontByName(name string) *truetype.Font {
+	// Library จะส่ง name มาเป็น "fonts/Roboto" (มันเติม prefix fonts/ ให้เอง)
+	// เราต้องเติม .ttf ให้มัน
+	filename := "fonts/" + name + ".ttf"
+
+	// อ่านไฟล์
+	fontBytes, err := os.ReadFile(filename)
+	if err != nil {
+		// ลองอีก path เผื่อ library ส่งมาเป็น fonts/Roboto อยู่แล้ว
+		filename = name + ".ttf"
+		fontBytes, err = os.ReadFile(filename)
+		if err != nil {
+			fmt.Printf("Error loading font file: %s (Check if 'fonts/Roboto.ttf' exists)\n", filename)
+			panic(err)
+		}
+	}
+
+	font, err := truetype.Parse(fontBytes)
+	if err != nil {
+		panic(err)
+	}
+	return font
+}
+
+func (s *DiskFontStore) LoadFontsByNames(names []string) []*truetype.Font {
+	var fonts []*truetype.Font
+	for _, name := range names {
+		// เรียกใช้ฟังก์ชันโหลดทีละตัวที่เราเขียนไว้แล้ว
+		f := s.LoadFontByName(name)
+		fonts = append(fonts, f)
+	}
+	return fonts
+}
+
+type CaseSensitiveStore struct {
+	sync.Map // ใช้ sync.Map เก็บข้อมูล (Thread-safe)
+}
+
+// Set เก็บคำตอบลง Memory
+func (s *CaseSensitiveStore) Set(id string, value string) error {
+	s.Map.Store(id, value)
+	return nil
+}
+
+// Get: ดึงคำตอบ (และลบทิ้งถ้า clear=true)
+func (s *CaseSensitiveStore) Get(id string, clear bool) string {
+	val, ok := s.Map.Load(id)
+	if !ok {
+		return ""
+	}
+	if clear {
+		s.Map.Delete(id)
+	}
+	return val.(string)
+}
+
+func (s *CaseSensitiveStore) Verify(id, answer string, clear bool) bool {
+	v := s.Get(id, clear)
+	// ใช้==ตรงๆ แทน strings.EqualFold เพื่อให้ A != a
+	return v == answer
+}
+
+var Store = &CaseSensitiveStore{}
+var FontStore = &DiskFontStore{}
 
 type VerifyRequest struct {
 	CaptchaID   string `json:"captchaId"`
@@ -35,31 +104,32 @@ func GenerateCaptcha(c *gin.Context) {
 		driver = base64Captcha.NewDriverMath(
 			60,
 			240,
-			0,
-			base64Captcha.OptionShowHollowLine,
+			15,
+			base64Captcha.OptionShowSlimeLine,
 			&color.RGBA{0, 0, 0, 0},
-			nil,
-			nil,
+			FontStore,
+			[]string{"Roboto"},
 		)
 	} else {
 		// --- แบบ Text (ตัวอักษร) ---
 		driver = base64Captcha.NewDriverString(
 			60,
 			240,
-			0,
-			base64Captcha.OptionShowHollowLine,
+			30,
+			base64Captcha.OptionShowSineLine,
 			4,
-			"1234567890abcdefghjkmn",
+			"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz",
 			&color.RGBA{0, 0, 0, 0},
-			nil,
-			nil,
+			FontStore,
+			[]string{"Roboto"},
 		)
 	}
 
 	// สร้าง Captcha
 	cpt := base64Captcha.NewCaptcha(driver, Store)
-	id, b64s, _, err := cpt.Generate()
+	id, b64s, answer, err := cpt.Generate()
 
+	fmt.Println(answer) // แสดงคำตอบใน Console (สำหรับ Debug)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to generate captcha"})
 		return
@@ -85,6 +155,7 @@ func VerifyCaptcha(c *gin.Context) {
 		sessIDStr = sessionID.(string)
 	}
 
+	fmt.Println("Received CAPTCHA answer:", req.Answer)
 	// บันทึกลง Database True and false
 	isCorrect := Store.Verify(req.CaptchaID, req.Answer, true)
 	database.DB.Create(&database.ResearchLog{
