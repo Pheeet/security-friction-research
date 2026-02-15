@@ -17,7 +17,8 @@ import (
 //dummy secret key for testing, replace with your own key from https://www.cloudflare.com/turnstile
 
 type TurnstileRequest struct {
-	Token string `json:"token" binding:"required"`
+	Token     string `json:"token" binding:"required"`
+	TimeTaken int64  `json:"timeTaken"`
 }
 
 type TurnstileResponse struct {
@@ -80,11 +81,11 @@ func VerifyTurnstile(c *gin.Context) {
 		CaptchaID:   "turnstile-widget",
 		UserInput:   "click",
 		IsCorrect:   cfRes.Success,
-		TimeTaken:   0,
+		TimeTaken:   req.TimeTaken,
 	})
 	//สงผลกับ frontend
 	if cfRes.Success {
-		fmt.Println("✅ Verification Success!")
+		fmt.Println("Verification Success!")
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Verified!"})
 	} else {
 

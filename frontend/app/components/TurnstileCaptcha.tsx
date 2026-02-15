@@ -19,6 +19,7 @@ export default function TurnstileCaptcha() {
   // 3. Ref กันยิงซ้ำ (สำคัญมากสำหรับปัญหานี้)
   const isVerifying = useRef(false);
 
+  const startTime = useRef<number | null>(null);
   const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
   // ฟังก์ชันเริ่มสร้าง Widget (จะถูกเรียกเมื่อ Script โหลดเสร็จ)
   const renderWidget = () => {
@@ -32,17 +33,27 @@ export default function TurnstileCaptcha() {
         theme: "light",
         size: "normal",
         
+        "before-interactive-callback": () => {
+          startTime.current = Date.now();
+          console.log("⏱️ Timer Started");
+        },
+
         // เมื่อ User ติ๊กถูกและได้ Token
         callback: async (token: string) => {
           if (isVerifying.current) return; // กันเบิ้ล
           isVerifying.current = true;
+          
+          const endTime = Date.now();
+          const timeTaken = startTime.current 
+            ? Math.floor(endTime - startTime.current) // หน่วยเป็น Milliseconds
+            : 0;
           
           setStatus("Verifying...");
 
           try {
             const res = await axios.post(
               "http://localhost:8080/api/turnstile/verify",
-              { token },
+              { token, timeTaken },
               { withCredentials: true }
             );
 

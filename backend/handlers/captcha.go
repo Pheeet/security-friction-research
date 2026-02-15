@@ -127,9 +127,8 @@ func GenerateCaptcha(c *gin.Context) {
 
 	// สร้าง Captcha
 	cpt := base64Captcha.NewCaptcha(driver, Store)
-	id, b64s, answer, err := cpt.Generate()
+	id, b64s, _, err := cpt.Generate()
 
-	fmt.Println(answer) // แสดงคำตอบใน Console (สำหรับ Debug)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to generate captcha"})
 		return
@@ -155,7 +154,6 @@ func VerifyCaptcha(c *gin.Context) {
 		sessIDStr = sessionID.(string)
 	}
 
-	fmt.Println("Received CAPTCHA answer:", req.Answer)
 	// บันทึกลง Database True and false
 	isCorrect := Store.Verify(req.CaptchaID, req.Answer, true)
 	database.DB.Create(&database.ResearchLog{
