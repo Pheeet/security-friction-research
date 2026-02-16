@@ -8,11 +8,36 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"unicode"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/gomail.v2"
 )
+
+// ฟังก์ชันตรวจสอบความแข็งแกร่งรหัสผ่าน
+func isPasswordStrong(pass string) bool {
+	var (
+		hasMinLen = false
+		hasUpper  = false
+		hasLower  = false
+		hasNumber = false
+	)
+	if len(pass) >= 8 {
+		hasMinLen = true
+	}
+	for _, char := range pass {
+		switch {
+		case unicode.IsUpper(char):
+			hasUpper = true
+		case unicode.IsLower(char):
+			hasLower = true
+		case unicode.IsNumber(char):
+			hasNumber = true
+		}
+	}
+	return hasMinLen && hasUpper && hasLower && hasNumber
+}
 
 // ฟังก์ชันช่วยส่งอีเมล
 func sendEmailOTP(to string, otp string, refCode string) error {
@@ -81,6 +106,15 @@ func RegisterHandler(c *gin.Context) {
 	result := database.DB.Where("username = ? OR email = ?", req.Username, req.Email).First(&existingUser)
 	if result.RowsAffected > 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ชื่อผู้ใช้หรืออีเมลนี้ถูกใช้งานแล้ว"})
+		return
+	}
+
+	// --- Password check ---
+	if !isPasswordStrong(req.Password) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Password too weak",                                                                     // Error code สำหรับ Dev
+			"message": "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร และประกอบด้วยตัวพิมพ์ใหญ่, ตัวพิมพ์เล็ก, และตัวเลข", // ข้อความสำหรับ User
+		})
 		return
 	}
 
