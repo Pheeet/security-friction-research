@@ -1,3 +1,4 @@
+// main.go
 package main
 
 import (
@@ -28,10 +29,10 @@ func main() {
 
 	// 2. แก้ปัญหา CORS (ให้ Frontend ยิงเข้ามาได้)
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:3000", "http://127.0.0.1:3000"}
+	config.AllowAllOrigins = true
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
-	config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
-	config.ExposeHeaders = []string{"Content-Length"}
+	config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization", "Accept", "Cookie"}
+	config.ExposeHeaders = []string{"Content-Length", "Set-Cookie"}
 	config.AllowCredentials = true
 	config.MaxAge = 12 * time.Hour
 	r.Use(cors.New(config))
@@ -45,31 +46,31 @@ func main() {
 			c.JSON(200, gin.H{"message: ": "pong"})
 		})
 
-		api.GET("/captcha", handlers.GenerateCaptcha)
-		api.POST("/verify", handlers.VerifyCaptcha)
-
-		//slider
-		api.GET("/slider", handlers.GenerateSliderCaptcha)
-		api.POST("/slider/verify", handlers.VerifySlider)
-
-		//cloudflare turnstile
-		api.POST("/turnstile/verify", handlers.VerifyTurnstile)
-
-		// --- login route --
+		// --- 🟢 Public Routes (ไม่ต้องใช้ JWT) ---
 		api.POST("/login", handlers.LoginHandler)
 		api.POST("/register", handlers.RegisterHandler)
-
 		api.GET("/check-availability", handlers.CheckAvailabilityHandler)
 
-		// --- Route Google Auth ---
-		api.GET("/auth/google/login", handlers.GoogleLogin)       // ปุ่มกด Login
-		api.GET("/auth/google/callback", handlers.GoogleCallback) // Google ส่งกลับมาที่นี่
-		api.POST("/2fa/request", handlers.RequestOTPHandler)
+		// Captcha ด่านต่างๆ (ใช้ userID จาก Body/Query)
+		api.GET("/captcha", handlers.GenerateCaptcha)
+		api.POST("/verify", handlers.VerifyCaptcha)
+		api.GET("/slider", handlers.GenerateSliderCaptcha)
+		api.POST("/slider/verify", handlers.VerifySlider)
+		api.POST("/turnstile/verify", handlers.VerifyTurnstile)
 
-		// --- 2FA Route ---
-		api.POST("/2fa/verify", handlers.Verify2FAHandler)
-		api.GET("/2fa/check-push", handlers.CheckPushStatus)
-		api.GET("/2fa/simulate-push-approve", handlers.SimulatePushApprove)
+		// 2FA & Google SSO
+		api.GET("/auth/google/login", handlers.GoogleLogin)
+		api.GET("/auth/google/callback", handlers.GoogleCallback)
+		api.POST("/2fa/request", handlers.RequestOTPHandler)
+		api.POST("/2fa/verify", handlers.Verify2FAHandler) // ตัวนี้เป็นคนแจก JWT
+
+		// --- Protected Routes (ต้องผ่าน 2FA และมี JWT แล้วเท่านั้น) ---
+		protected := api.Group("/research")
+		protected.Use(middleware.AuthMiddleware()) // ใช้ Middleware กั้นตรงนี้
+		{
+			// API สุดท้ายที่จะรวบรวม Data ทั้งหมด
+			//protected.POST("/survey", handlers.SubmitSurveyHandler)
+		}
 	}
 
 	// รัน Server ที่ Port 8080

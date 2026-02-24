@@ -1,3 +1,5 @@
+//handlers/google_auth.go
+
 package handlers
 
 import (
@@ -15,6 +17,7 @@ import (
 	"backend-api/database"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -127,6 +130,15 @@ func GoogleCallback(c *gin.Context) {
 	// )
 
 	// c.Redirect(http.StatusTemporaryRedirect, twoFAURL)
+	sessionID := uuid.New().String()
+	journey := database.ResearchJourney{
+		UserID:       user.ID,
+		SessionID:    sessionID,
+		TimeLogin:    0, // Google Login จับเวลาหน้าเว็บไม่ได้ แต่เริ่มนับด่านนี้เป็นจุดเริ่ม
+		CurrentStage: "login_success",
+	}
+	database.DB.Create(&journey)
+
 	user.TwoFACode = ""
 	user.TwoFARef = ""
 	user.IsPushApproved = false

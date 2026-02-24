@@ -1,3 +1,5 @@
+//handlers/slider.go
+
 package handlers
 
 import (
@@ -13,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"backend-api/database"
@@ -40,15 +43,15 @@ func GenerateSliderCaptcha(c *gin.Context) {
 	var allFiles []string
 
 	isMask := func(path string) bool {
-        return filepath.Base(path) == "mask.png"
-    }
+		return filepath.Base(path) == "mask.png"
+	}
 
 	if files, err := filepath.Glob("assets/*.png"); err == nil {
 		for _, f := range files {
-            if !isMask(f) {
-                allFiles = append(allFiles, f)
-            }
-        }
+			if !isMask(f) {
+				allFiles = append(allFiles, f)
+			}
+		}
 	}
 	if files, err := filepath.Glob("assets/*.jpg"); err == nil {
 		allFiles = append(allFiles, files...)
@@ -187,6 +190,7 @@ func StoreSliderAnswer(sessionID string, answer int) {
 }
 
 func VerifySliderAnswer(sessionID string, userAnswer int) bool {
+
 	correctX, exists := sliderAnswers[sessionID]
 	if !exists {
 		return false
@@ -202,8 +206,9 @@ func VerifySliderAnswer(sessionID string, userAnswer int) bool {
 }
 
 type SliderVerifyRequest struct {
-	X         int   `json:"x"`
-	TimeTaken int64 `json:"timeTaken"`
+	UserID    string `json:"userId"`
+	X         int    `json:"x"`
+	TimeTaken int64  `json:"timeTaken"`
 }
 
 func VerifySlider(c *gin.Context) {
@@ -236,8 +241,22 @@ func VerifySlider(c *gin.Context) {
 
 	// 4. ส่งผลลัพธ์กลับ
 	if isCorrect {
+		// [RESEARCH LOGIC] อัปเดต Journey หลัก
+		var journey database.ResearchJourney
+		uid, _ := strconv.ParseUint(req.UserID, 10, 32)
+
+		database.DB.Where("user_id = ? AND current_stage = ?", uint(uid), "login_success").
+			Order("created_at desc").First(&journey)
+
+		if journey.ID != 0 {
+			journey.TimeCaptcha = req.TimeTaken
+			journey.CaptchaType = "slider"
+			journey.CurrentStage = "captcha_success"
+			database.DB.Save(&journey)
+		}
+
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Correct!"})
 	} else {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "Incorrect! Try again."})
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "Incorrect!"})
 	}
 }

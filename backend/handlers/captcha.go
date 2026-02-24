@@ -1,3 +1,5 @@
+//handlers/captcha.go
+
 package handlers
 
 import (
@@ -6,6 +8,7 @@ import (
 	"image/color"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -87,6 +90,7 @@ var Store = &CaseSensitiveStore{}
 var FontStore = &DiskFontStore{}
 
 type VerifyRequest struct {
+	UserID      string `json:"userId"`
 	CaptchaID   string `json:"captchaId"`
 	CaptchaType string `json:"captchaType"`
 	Answer      string `json:"answer"` //base 64
@@ -148,14 +152,13 @@ func VerifyCaptcha(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "Invalid request"})
 		return
 	}
-	sessionID, exists := c.Get("research_session_id")
-	sessIDStr := "Unknown"
-	if exists {
-		sessIDStr = sessionID.(string)
-	}
+
 
 	// บันทึกลง Database True and false
 	isCorrect := Store.Verify(req.CaptchaID, req.Answer, true)
+	sessionID, _ := c.Get("research_session_id")
+    sessIDStr := "Unknown"
+    if s, ok := sessionID.(string); ok { sessIDStr = s }
 	database.DB.Create(&database.ResearchLog{
 		SessionID:   sessIDStr, // <--- บันทึกลง DB ตรงนี้
 		CaptchaID:   req.CaptchaID,
@@ -166,8 +169,20 @@ func VerifyCaptcha(c *gin.Context) {
 	})
 
 	if !isCorrect {
+
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "Incorrect!"})
 		return
+	}
+	var journey database.ResearchJourney
+	uid, _ := strconv.ParseUint(req.UserID, 10, 32)
+
+	database.DB.Where("user_id = ? AND current_stage = ?", uint(uid), "login_success").
+		Order("created_at desc").First(&journey)
+	if journey.ID != 0 {
+		journey.TimeCaptcha = req.TimeTaken
+		journey.CaptchaType = req.CaptchaType
+		journey.CurrentStage = "captcha_success" // เปลี่ยนสถานะเพื่อไปต่อด่าน 2FA
+		database.DB.Save(&journey)
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Correct!"})
 }

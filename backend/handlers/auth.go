@@ -1,3 +1,4 @@
+//handlers/auth.go
 package handlers
 
 import (
@@ -11,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/gomail.v2"
 )
@@ -71,6 +73,7 @@ func sendEmailOTP(to string, otp string, refCode string) error {
 type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+	TimeLogin int64  `json:"time_login"`
 }
 
 // 2. สำหรับ Register (ต้องรับข้อมูลเยอะกว่า)
@@ -86,7 +89,7 @@ type TwoFAResponse struct {
 	Require2FA bool   `json:"require_2fa"`
 	UserID     uint   `json:"user_id"`
 	Method     string `json:"method"`   // email, push
-	RefCode    string `json:"ref_code"` // AB12
+	SessionID  string `json:"session_id"`
 }
 
 // RegisterHandler
@@ -155,6 +158,17 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
+	
+	// [RESEARCH LOGIC] สร้าง SessionID และเริ่มบันทึก Journey
+	sessionID := uuid.New().String()
+	journey := database.ResearchJourney{
+		UserID:       user.ID,
+		SessionID:    sessionID,
+		TimeLogin:    creds.TimeLogin, // บันทึกเวลาที่ใช้ในหน้า Login
+		CurrentStage: "login_success",
+	}
+	database.DB.Create(&journey)
+
 	// --- 2FA Logic ---
 	method := "email"
 	if user.Provider == "google" {
@@ -171,6 +185,7 @@ func LoginHandler(c *gin.Context) {
 		Require2FA: true,
 		UserID:     user.ID,
 		Method:     method,
+		SessionID:  sessionID,
 		// ไม่ต้องส่ง RefCode กลับไปตอนนี้ก็ได้ เพราะเดี๋ยว RequestOTPHandler จะสร้างให้ใหม่
 	})
 }
@@ -180,14 +195,12 @@ func LoginHandler(c *gin.Context) {
 type Verify2FARequest struct {
 	UserID uint   `json:"user_id"`
 	OTP    string `json:"otp"` // ใช้เฉพาะ Email OTP
+	TimeTaken int64  `json:"time_taken"`
 }
 
 // รวม VerifyEmailOTP และ Verify2FAHandler เป็นอันเดียว
 func Verify2FAHandler(c *gin.Context) {
-	var req struct {
-		UserID uint   `json:"user_id"`
-		OTP    string `json:"otp"`
-	}
+	var req Verify2FARequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
@@ -206,6 +219,17 @@ func Verify2FAHandler(c *gin.Context) {
 
 	// ตรวจสอบ OTP
 	if user.TwoFACode == req.OTP && time.Now().Before(user.TwoFAExpiry) {
+
+		var journey database.ResearchJourney
+		database.DB.Where("user_id = ? AND current_stage != ?", user.ID, "survey_completed").
+			Order("created_at desc").First(&journey)
+
+		if journey.ID != 0 {
+			journey.Time2FA = req.TimeTaken
+			journey.CurrentStage = "2fa_success"
+			database.DB.Save(&journey)
+		}
+		
 		// ผ่าน! ล้าง OTP ทิ้ง
 		user.TwoFACode = ""
 		user.TwoFAExpiry = time.Time{}

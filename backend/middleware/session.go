@@ -1,3 +1,5 @@
+//middleware/session.go
+
 package middleware
 
 import (

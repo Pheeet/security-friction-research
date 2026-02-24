@@ -1,3 +1,5 @@
+//turnstile.go
+
 package handlers
 
 import (
@@ -6,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"time"
 	_ "time"
 
@@ -17,6 +20,7 @@ import (
 //dummy secret key for testing, replace with your own key from https://www.cloudflare.com/turnstile
 
 type TurnstileRequest struct {
+	UserID    string `json:"userId"`
 	Token     string `json:"token" binding:"required"`
 	TimeTaken int64  `json:"timeTaken"`
 }
@@ -85,10 +89,24 @@ func VerifyTurnstile(c *gin.Context) {
 	})
 	//สงผลกับ frontend
 	if cfRes.Success {
+		var journey database.ResearchJourney
+		// แปลง userID จาก string เป็น uint
+		uid, _ := strconv.ParseUint(req.UserID, 10, 32)
+
+		// ค้นหา Journey ล่าสุดของ User คนนี้ที่เพิ่ง Login มา
+		database.DB.Where("user_id = ? AND current_stage = ?", uint(uid), "login_success").
+			Order("created_at desc").First(&journey)
+
+		if journey.ID != 0 {
+			journey.TimeCaptcha = req.TimeTaken
+			journey.CaptchaType = "cloudflare"
+			journey.CurrentStage = "captcha_success"
+			database.DB.Save(&journey)
+		}
+
 		fmt.Println("Verification Success!")
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Verified!"})
 	} else {
-
 		fmt.Println("Turnstile Failed:", cfRes.ErrorCodes)
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "Verification failed!", "errors": cfRes.ErrorCodes})
 	}
