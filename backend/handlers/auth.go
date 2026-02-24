@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 	"unicode"
 
@@ -97,9 +96,6 @@ func RegisterHandler(c *gin.Context) {
 		return
 	}
 
-	// แปลง Email เป็นพิมพ์เล็กทั้งหมด
-	req.Email = strings.ToLower(req.Email)
-
 	if req.Username == "" || req.Password == "" || req.FullName == "" || req.Email == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "กรุณากรอกข้อมูลให้ครบทุกช่อง"})
 		return
@@ -185,7 +181,7 @@ type Verify2FARequest struct {
 	OTP    string `json:"otp"` // ใช้เฉพาะ Email OTP
 }
 
-// VerifyEmailOTP และ Verify2FAHandler เป็นอันเดียว
+// รวม VerifyEmailOTP และ Verify2FAHandler เป็นอันเดียว
 func Verify2FAHandler(c *gin.Context) {
 	var req struct {
 		UserID uint   `json:"user_id"`
@@ -214,17 +210,10 @@ func Verify2FAHandler(c *gin.Context) {
 		user.TwoFAExpiry = time.Time{}
 		database.DB.Save(&user)
 
-		// 🔥 แทรกส่วนนี้: ลอจิก Round-Robin เลือก Captcha ตาม UserID
-		captchaTypes := []string{"math", "text", "slider", "cloudflare"}
-		// หารเอาเศษด้วยจำนวนชนิดของ Captcha (4)
-		selectedIndex := int(user.ID) % len(captchaTypes)
-		selectedCaptcha := captchaTypes[selectedIndex]
-
 		c.JSON(http.StatusOK, gin.H{
-			"success":      true,
-			"message":      "Login Success!",
-			"user":         user.Username,
-			"next_captcha": selectedCaptcha, // 🔥 ส่งประเภทที่สุ่มได้กลับไปให้ Frontend
+			"success": true,
+			"message": "Login Success!",
+			"user":    user.Username, // ส่งกลับไปเผื่อ Frontend ใช้แสดงผล
 		})
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "OTP ไม่ถูกต้องหรือหมดอายุแล้ว"})
@@ -258,38 +247,4 @@ func SimulatePushApprove(c *gin.Context) {
 	database.DB.Save(&user)
 
 	c.String(200, "Approved! You can close this window and check your main app.")
-}
-
-// --- เพิ่ม Handler ใหม่สำหรับเช็กว่ามี User/Email ซ้ำไหม ---
-func CheckAvailabilityHandler(c *gin.Context) {
-	username := c.Query("username")
-	email := c.Query("email")
-
-	// 🔥 แทรกตรงนี้: แปลง Email เป็นพิมพ์เล็ก
-	if email != "" {
-		email = strings.ToLower(email)
-	}
-
-	var user database.User
-
-	// 1. เช็ก Username
-	if username != "" {
-		if err := database.DB.Where("username = ?", username).First(&user).Error; err == nil {
-			// ถ้าเจอ user นี้ใน db แสดงว่าซ้ำ
-			c.JSON(http.StatusOK, gin.H{"available": false, "message": "ชื่อผู้ใช้นี้ถูกใช้งานแล้ว"})
-			return
-		}
-	}
-
-	// 2. เช็ก Email
-	if email != "" {
-		if err := database.DB.Where("email = ?", email).First(&user).Error; err == nil {
-			// ถ้าเจอ email นี้ใน db แสดงว่าซ้ำ
-			c.JSON(http.StatusOK, gin.H{"available": false, "message": "อีเมลนี้ถูกใช้งานแล้ว"})
-			return
-		}
-	}
-
-	// ถ้าไม่เจอแสดงว่าว่าง (Available)
-	c.JSON(http.StatusOK, gin.H{"available": true})
 }

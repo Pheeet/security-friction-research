@@ -59,7 +59,7 @@ func main() {
 		api.POST("/login", handlers.LoginHandler)
 		api.POST("/register", handlers.RegisterHandler)
 
-		//api.GET("/check-availability", handlers.CheckAvailabilityHandler)
+		api.GET("/check-availability", handlers.CheckAvailabilityHandler)
 
 		// --- Route Google Auth ---
 		api.GET("/auth/google/login", handlers.GoogleLogin)       // ปุ่มกด Login

@@ -14,7 +14,7 @@ export function middleware(request: NextRequest){
                          path.startsWith('/2fa');
 
     if (isLoggedIn && isPublicPath) {
-      return NextResponse.redirect(new URL('/', request.url));
+      return NextResponse.redirect(new URL('/survey', request.url));
     }
 
     if (!isLoggedIn && !isPublicPath) {
