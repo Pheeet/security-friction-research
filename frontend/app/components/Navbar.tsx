@@ -6,25 +6,24 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  // 🚫 รายชื่อหน้าที่ "ไม่ต้องการ" ให้โชว์ปุ่ม Logout
   const hiddenPaths = ['/login', '/register', '/2fa'];
-    if (hiddenPaths.some((path) => pathname.startsWith(path))) {
-    return null;
-  }
-  // เช็คว่า Path ปัจจุบันขึ้นต้นด้วยคำต้องห้ามไหม
-  // (เช่น /2fa/challenge ก็จะถือว่าตรงกับ /2fa และถูกซ่อน)
+  
+  // โค้ดตรงนี้ของคุณมีเขียนเช็คซ้ำกัน 2 รอบ ผมเลยรวบให้เหลือแค่นี้ครับจะได้คลีนๆ
   const shouldHide = hiddenPaths.some((path) => pathname.startsWith(path));
 
   if (shouldHide) {
-    return null; // ไม่แสดงอะไรเลย
+    return null; 
   }
 
   const handleLogout = async () => {
     try {
+      // 🔥 0. ล้างข้อมูลจับเวลาของงานวิจัยทิ้งทั้งหมด! (สำคัญมากสำหรับการทดลอง)
+      sessionStorage.clear();
+
       // 1. เรียก API ให้ Server ล้าง Cookie ให้สะอาด
       await fetch('/api/logout', { method: 'POST' });
 
-      // 2. ล้าง Client Router Cache (สำคัญมาก! เพื่อไม่ให้มันจำหน้าเก่า)
+      // 2. ล้าง Client Router Cache 
       router.refresh();
 
       // 3. ส่งกลับไปหน้า Login
@@ -32,7 +31,8 @@ export default function Navbar() {
       
     } catch (error) {
       console.error('Logout failed:', error);
-      // Fallback: ถ้า API พัง ก็พยายามลบเองแบบเดิม
+      // Fallback: ล้างไพ่แบบ Manual
+      sessionStorage.clear(); // เผื่อ API พังก็ต้องล้าง Data ด้วย
       document.cookie = "is-logged-in=; path=/; max-age=0";
       window.location.href = '/login';
     }

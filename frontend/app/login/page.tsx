@@ -54,7 +54,7 @@ export default function LoginPage() {
                 // ถ้าอยากบังคับให้ทุกคนไป CAPTCHA อาจจะต้องเปลี่ยน router.push('/') เป็น router.push('/captcha') แทนครับ
                 document.cookie = "is-logged-in=true; path=/; max-age=3600";
                 alert('Login สำเร็จ!');
-                router.push('/');
+                router.push('/captcha');
             }
         } else {
             alert(data.error || 'Login ไม่สำเร็จ');
