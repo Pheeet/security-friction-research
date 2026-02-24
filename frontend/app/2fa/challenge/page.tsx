@@ -1,3 +1,4 @@
+//app/2fa/challenge
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -29,14 +30,16 @@ function ChallengeContent() {
     }
 
     setLoading(true);
-
+    const timeTakenMs = Date.now() - startTime;
     try {
       const res = await fetch('http://localhost:8080/api/2fa/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           user_id: parseInt(userId || '0', 10),
-          otp: otp
+          otp: otp,
+          time_taken: timeTakenMs
         }),
       });
 
@@ -44,11 +47,8 @@ function ChallengeContent() {
 
       if (data.success) {
         // คำนวณเวลาที่ใช้ในหน้า 2FA และบันทึกลง sessionStorage
-        const endTime = Date.now();
-        const timeSpent = (endTime - startTime) / 1000; // วินาที
-        sessionStorage.setItem('time_2fa', timeSpent.toString());
+        sessionStorage.setItem('time_2fa', (timeTakenMs / 1000).toString());
 
-        document.cookie = "is-logged-in=true; path=/; max-age=3600";
         alert("OTP Verified!");
         router.push('/survey'); // go to captcha
       } else {
@@ -130,7 +130,7 @@ function ChallengeContent() {
           type="text" 
           placeholder="Enter 6-digit Code"
           value={otp}
-          onChange={(e) => setOtp(e.target.value)}
+          onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
           onKeyDown={handleKeyDown} // เพิ่มกด Enter
           maxLength={6}
           style={{ 

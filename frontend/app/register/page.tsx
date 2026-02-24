@@ -1,3 +1,5 @@
+//app/register
+
 'use client';
 
 import { useState, useEffect, CSSProperties } from 'react';

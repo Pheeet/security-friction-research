@@ -1,3 +1,5 @@
+//app/security-checkpoint
+
 'use client';
 
 import { useEffect, Suspense } from 'react';

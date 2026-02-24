@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/gomail.v2"
 )
@@ -210,10 +211,33 @@ func Verify2FAHandler(c *gin.Context) {
 		user.TwoFAExpiry = time.Time{}
 		database.DB.Save(&user)
 
+		// 1. เตรียม Secret Key
+		secret := os.Getenv("JWT_SECRET")
+		if secret == "" {
+			secret = "fallback-secret-for-dev"
+		}
+
+		// 2. สร้าง JWT Token อายุ 24 ชั่วโมง
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"user_id": user.ID,
+			"exp":     time.Now().Add(time.Hour * 24).Unix(),
+		})
+		
+		tokenString, err := token.SignedString([]byte(secret))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate token"})
+			return
+		}
+
+		// 3. ตั้งค่า HttpOnly Cookie ระดับ Production
+		// พารามิเตอร์: name, value, maxAge(วินาที), path, domain, secure(HTTPS), httpOnly
+		// หมายเหตุ: secure ให้เป็น false ไปก่อนตอนทำบน localhost ถ้าขึ้นของจริงค่อยเปลี่ยนเป็น true
+		c.SetCookie("auth_token", tokenString, 3600*24, "/", "localhost", false, true)
+
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"message": "Login Success!",
-			"user":    user.Username, // ส่งกลับไปเผื่อ Frontend ใช้แสดงผล
+			"user":    user.Username, 
 		})
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "OTP ไม่ถูกต้องหรือหมดอายุแล้ว"})

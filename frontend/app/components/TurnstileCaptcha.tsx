@@ -1,3 +1,4 @@
+//components/TurnstileCaptcha.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -65,6 +66,9 @@ export default function TurnstileCaptcha({ onVerify }: Props) {
               sessionStorage.setItem('time_captcha', timeSpentSeconds.toString());
               sessionStorage.setItem('captcha_type', 'turnstile');
               setStatus("Correct!");
+
+              isVerifying.current = false;
+              
               setTimeout(() => {
                 if (onVerify) {
                   onVerify();

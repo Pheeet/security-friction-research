@@ -1,3 +1,4 @@
+//app/captcha/slider
 'use client';
 
 import { Suspense } from "react";

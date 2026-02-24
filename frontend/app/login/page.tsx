@@ -1,3 +1,4 @@
+//app/login
 'use client';
 
 // 🔥 1. เพิ่ม useEffect เข้ามาใน import
@@ -54,9 +55,8 @@ export default function LoginPage() {
             } else {
                 // ⚠️ ข้อควรระวังสำหรับงานวิจัย: ถ้าไม่บังคับ 2FA User คนนี้จะไม่ถูกส่งไปทำ CAPTCHA ต่อ (ตาม Flow ที่ตั้งไว้)
                 // ถ้าอยากบังคับให้ทุกคนไป CAPTCHA อาจจะต้องเปลี่ยน router.push('/') เป็น router.push('/captcha') แทนครับ
-                document.cookie = "is-logged-in=true; path=/; max-age=3600";
                 alert('Login สำเร็จ!');
-                router.push('/captcha');
+                router.push('/security-checkpoint?userId=${data.user_id}');
             }
         } else {
             alert(data.error || 'Login ไม่สำเร็จ');

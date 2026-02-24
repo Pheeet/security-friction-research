@@ -1,3 +1,5 @@
+//components/Navbar.tsx
+
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
@@ -22,11 +24,11 @@ export default function Navbar() {
   const handleLogout = async () => {
     try {
       // 🔥 0. ล้างข้อมูลจับเวลาของงานวิจัยทิ้งทั้งหมด! (สำคัญมากสำหรับการทดลอง)
-      sessionStorage.clear();
+     
 
       // 1. เรียก API ให้ Server ล้าง Cookie ให้สะอาด
       await fetch('/api/logout', { method: 'POST' });
-
+      sessionStorage.clear();
       // 2. ล้าง Client Router Cache 
       router.refresh();
 

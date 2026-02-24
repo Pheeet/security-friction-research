@@ -1,3 +1,4 @@
+//app/captcha/math
 'use client';
 
 import { Suspense } from "react";

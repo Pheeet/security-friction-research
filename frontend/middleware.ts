@@ -1,3 +1,4 @@
+//middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -5,7 +6,7 @@ export function middleware(request: NextRequest){
     // ดึง path ปัจจุบัน
     const path = request.nextUrl.pathname;
 
-    const isLoggedIn = request.cookies.get('is-logged-in')?.value === 'true';
+    const isLoggedIn = request.cookies.has('auth_token');
 
     const isPublicPath = path === '/login' || 
                          path === '/register' || 

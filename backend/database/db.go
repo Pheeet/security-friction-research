@@ -25,6 +25,29 @@ type ResearchLog struct {
 	CreatedAt   time.Time
 }
 
+type ResearchJourney struct {
+	gorm.Model
+	UserID       uint   `json:"user_id"`
+	SessionID    string `json:"session_id"` // เอาไว้ผูกกับตอน Login
+	
+	// --- เก็บเวลาแต่ละด่าน (มิลลิวินาที) ---
+	TimeLogin    int64  `json:"time_login"`
+	TimeCaptcha  int64  `json:"time_captcha"`
+	CaptchaType  string `json:"captcha_type"`
+	Time2FA      int64  `json:"time_2fa"`
+	
+	// --- สถานะเพื่อดูว่าคน "ถอดใจ" ที่ด่านไหน (Drop-off tracking) ---
+	// เช่น "login_success", "captcha_success", "2fa_success", "survey_completed"
+	CurrentStage string `json:"current_stage"` 
+	
+	// --- คะแนนแบบสอบถาม (0-5) ---
+	Q1 int `json:"q1"`
+	Q2 int `json:"q2"`
+	Q3 int `json:"q3"`
+	Q4 int `json:"q4"`
+	Q5 int `json:"q5"`
+}
+
 type User struct {
 	gorm.Model        // เพิ่ม ID, CreatedAt, UpdatedAt, DeletedAt ให้อัตโนมัติ
 	Username   string `gorm:"uniqueIndex;not null" json:"username"` // ห้ามซ้ำ และห้ามว่าง
@@ -64,5 +87,5 @@ func ConnectDB() {
 	log.Println("Connected to Database successfully")
 
 	// Auto Migrate ตาราง
-	DB.AutoMigrate(&ResearchLog{}, &User{})
+	DB.AutoMigrate(&ResearchLog{}, &ResearchJourney{}, &User{})
 }

@@ -1,3 +1,5 @@
+//app/survey
+
 'use client';
 
 import { useState } from 'react';
@@ -97,42 +99,28 @@ export default function SurveyPage() {
 
     try {
       // 🔥 1. รวบรวมข้อมูลเวลาจากหน้าต่างๆ ที่เก็บไว้ใน sessionStorage
-      const payload = {
-        userId: "user_" + Math.floor(Math.random() * 10000), // สร้าง ID จำลองสำหรับผู้ทดสอบ
-        time_reg: sessionStorage.getItem('time_reg') || "0",
-        time_login: sessionStorage.getItem('time_login') || "0",
-        time_2fa: sessionStorage.getItem('time_2fa') || "0",
-        captcha_type: sessionStorage.getItem('captcha_type') || "unknown",
-        time_captcha: sessionStorage.getItem('time_captcha') || "0",
-        
-        // คะแนนแบบสอบถาม
-        q1: answers.q1,
-        q2: answers.q2,
-        q3: answers.q3,
-        q4: answers.q4,
-        q5: answers.q5
-      };
-
-      // 🔥 2. ยิงข้อมูลไปที่ Google Apps Script (เดี๋ยวเราจะสร้าง URL นี้กัน)
-      const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxpj2uy8teGmGprEnsRsli7E-nWnIrBTUhgdrSoxBp3TRyMWIJcEiMLFIhLMGlyjvQ-/exec";
-      
-      await fetch(GOOGLE_SCRIPT_URL, {
+      const res = await fetch('http://localhost:8080/api/research/survey', {
         method: 'POST',
-        body: JSON.stringify(payload),
-        headers: { 
-          'Content-Type': 'text/plain;charset=utf-8' // 👈 ต้องเป็น text/plain นะครับ
-        }, 
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // ส่ง JWT Cookie ไปด้วยเพื่อให้ Backend รู้ว่าเป็นใคร
+        body: JSON.stringify({
+          q1: answers.q1,
+          q2: answers.q2,
+          q3: answers.q3,
+          q4: answers.q4,
+          q5: answers.q5
+        }),
       });
 
-      // 🔥 3. ล้างข้อมูล Session ทิ้ง เพื่อไม่ให้กวนการทดสอบของคนถัดไป
-      sessionStorage.clear();
-      
-      alert('บันทึกข้อมูลเรียบร้อย ขอบคุณที่ร่วมทดสอบครับ!');
-      router.push('/thank-you'); 
-      
+      if (res.ok) {
+        sessionStorage.clear();
+        alert('บันทึกข้อมูลเรียบร้อย ขอบคุณที่ร่วมทดสอบครับ!');
+        router.push('/thank-you'); 
+      } else {
+        throw new Error("Backend save failed");
+      }
     } catch (error) {
-      console.error(error);
-      alert('เกิดข้อผิดพลาดในการส่งข้อมูลลงระบบ');
+      alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
     } finally {
       setIsSubmitting(false);
     }
