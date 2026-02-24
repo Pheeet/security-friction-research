@@ -18,7 +18,9 @@ export default function CaptchaTest({ type, title, onSuccess }: Props) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<{ success: boolean; message: string } | null>(null);
-  const [startTime, setStartTime] = useState<number>(0);
+  
+  // 🔥 1. เปลี่ยนชื่อตัวแปรให้ชัดเจนว่าเป็นเวลา "เริ่มต้นจริงๆ"
+  const [absoluteStartTime, setAbsoluteStartTime] = useState<number>(0);
 
   const [isError, setIsError] = useState(false);
 
@@ -31,7 +33,8 @@ export default function CaptchaTest({ type, title, onSuccess }: Props) {
       const res = await axios.get(`http://localhost:8080/api/captcha?type=${type}`, { withCredentials: true });
       setImageURL(res.data.image);
       setCaptchaId(res.data.captchaId);
-      setStartTime(Date.now()); // เริ่มจับเวลาใหม่ทุกครั้งที่รีเฟรช
+      
+      // 🔥 2. เอาการรีเซ็ตเวลาออกจากตรงนี้ เพื่อให้มันจับเวลารวมทั้งหมดแม้ User จะกดเปลี่ยนรูปหลายรอบ
 
     } catch (error) {
       console.error("Error:", error);
@@ -42,14 +45,16 @@ export default function CaptchaTest({ type, title, onSuccess }: Props) {
 
   const verifyCaptcha = async () => {
     if (!input) return;
-    const duration = Date.now() - startTime;
+    
+    // 🔥 3. คำนวณเวลารวมตั้งแต่โหลดหน้าจนกด Submit
+    const durationTotal = Date.now() - absoluteStartTime;
 
     try {
       const res = await axios.post("http://localhost:8080/api/verify", {
         captchaId: captchaId,
         captchaType: type,
         answer: input,
-        timeTaken: duration 
+        timeTaken: durationTotal // ส่งค่ามิลลิวินาทีให้ Backend ตามเดิมเผื่อไว้ใช้
       }, { withCredentials: true });
 
       setStatus({
@@ -58,21 +63,26 @@ export default function CaptchaTest({ type, title, onSuccess }: Props) {
       });
 
       if (res.data.success) {
+        const timeSpentSeconds = durationTotal / 1000;
+        sessionStorage.setItem('time_captcha', timeSpentSeconds.toString());
+        sessionStorage.setItem('captcha_type', type); // บันทึกประเภทไว้ด้วย จะได้แยกถูกว่า Math หรือ Text
+        
+        console.log("👉 กำลังจะย้ายไปหน้า Survey แล้วนะ!");
         setTimeout(() => {
           if (onSuccess) {
             onSuccess();
           } else {
-            router.push("/");
+            router.push("/survey");
           }
         }, 1500); 
-      } else {  
+      } else {
         setIsError(true);
         setTimeout(() => setIsError(false), 400);
         setInput("");
         setTimeout(() => {
-            setStatus(null); // เอาข้อความออก
-            fetchCaptcha();  // โหลดรูปใหม่
-        }, 2000); // 2000 = 2 วินาที
+            setStatus(null); 
+            fetchCaptcha();  
+        }, 2000); 
       }
 
     } catch (error) {
@@ -84,8 +94,10 @@ export default function CaptchaTest({ type, title, onSuccess }: Props) {
   };
 
   useEffect(() => {
+    // 🔥 6. เริ่มจับเวลา "ครั้งแรกและครั้งเดียว" ทันทีที่โหลด Component นี้ขึ้นมา
+    setAbsoluteStartTime(Date.now());
     fetchCaptcha();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-6">

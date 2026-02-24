@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
 function ChallengeContent() {
@@ -14,6 +14,14 @@ function ChallengeContent() {
   const initialRefCode = searchParams.get('refCode');
   const method = searchParams.get('method') || 'email';
   const [currentRefCode, setCurrentRefCode] = useState(initialRefCode);
+  // State สำหรับจับเวลา
+  const [startTime, setStartTime] = useState<number>(0);
+
+  // เริ่มจับเวลาทันทีที่หน้าโหลดเสร็จและพร้อมให้กรอก
+  useEffect(() => {
+    setStartTime(Date.now());
+  }, []);
+
   const handleVerifyOTP = async () => {
     if (!otp) {
       alert("Please enter OTP");
@@ -35,6 +43,11 @@ function ChallengeContent() {
       const data = await res.json();
 
       if (data.success) {
+        // คำนวณเวลาที่ใช้ในหน้า 2FA และบันทึกลง sessionStorage
+        const endTime = Date.now();
+        const timeSpent = (endTime - startTime) / 1000; // วินาที
+        sessionStorage.setItem('time_2fa', timeSpent.toString());
+
         document.cookie = "is-logged-in=true; path=/; max-age=3600";
         alert("OTP Verified!");
         router.push('/survey'); // go to captcha

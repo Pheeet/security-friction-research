@@ -16,15 +16,18 @@ export default function Navbar() {
   const shouldHide = hiddenPaths.some((path) => pathname.startsWith(path));
 
   if (shouldHide) {
-    return null; // ไม่แสดงอะไรเลย
+    return null; 
   }
 
   const handleLogout = async () => {
     try {
+      // 🔥 0. ล้างข้อมูลจับเวลาของงานวิจัยทิ้งทั้งหมด! (สำคัญมากสำหรับการทดลอง)
+      sessionStorage.clear();
+
       // 1. เรียก API ให้ Server ล้าง Cookie ให้สะอาด
       await fetch('/api/logout', { method: 'POST' });
 
-      // 2. ล้าง Client Router Cache (สำคัญมาก! เพื่อไม่ให้มันจำหน้าเก่า)
+      // 2. ล้าง Client Router Cache 
       router.refresh();
 
       // 3. ส่งกลับไปหน้า Login
@@ -32,7 +35,8 @@ export default function Navbar() {
       
     } catch (error) {
       console.error('Logout failed:', error);
-      // Fallback: ถ้า API พัง ก็พยายามลบเองแบบเดิม
+      // Fallback: ล้างไพ่แบบ Manual
+      sessionStorage.clear(); // เผื่อ API พังก็ต้องล้าง Data ด้วย
       document.cookie = "is-logged-in=; path=/; max-age=0";
       window.location.href = '/login';
     }

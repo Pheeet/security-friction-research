@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"backend-api/database"
@@ -68,6 +69,8 @@ func GoogleCallback(c *gin.Context) {
 
 	json.Unmarshal(content, &googleUser)
 
+	googleUser.Email = strings.ToLower(googleUser.Email)
+
 	var user database.User
 
 	// -----------------------------
@@ -83,7 +86,8 @@ func GoogleCallback(c *gin.Context) {
 			encodedName,
 		)
 
-		c.Redirect(http.StatusTemporaryRedirect, registerURL)
+		// เปลี่ยนเป็น StatusFound (302)
+		c.Redirect(http.StatusFound, registerURL)
 		return
 	}
 
@@ -195,4 +199,38 @@ func RequestOTPHandler(c *gin.Context) {
 		"ref_code": refCode,
 		"method":   req.Method,
 	})
+}
+
+// --- เพิ่ม Handler ใหม่สำหรับเช็กว่ามี User/Email ซ้ำไหม ---
+func CheckAvailabilityHandler(c *gin.Context) {
+	username := c.Query("username")
+	email := c.Query("email")
+
+	// 🔥 แทรกตรงนี้: แปลง Email เป็นพิมพ์เล็ก
+	if email != "" {
+		email = strings.ToLower(email)
+	}
+
+	var user database.User
+
+	// 1. เช็ก Username
+	if username != "" {
+		if err := database.DB.Where("username = ?", username).First(&user).Error; err == nil {
+			// ถ้าเจอ user นี้ใน db แสดงว่าซ้ำ
+			c.JSON(http.StatusOK, gin.H{"available": false, "message": "ชื่อผู้ใช้นี้ถูกใช้งานแล้ว"})
+			return
+		}
+	}
+
+	// 2. เช็ก Email
+	if email != "" {
+		if err := database.DB.Where("email = ?", email).First(&user).Error; err == nil {
+			// ถ้าเจอ email นี้ใน db แสดงว่าซ้ำ
+			c.JSON(http.StatusOK, gin.H{"available": false, "message": "อีเมลนี้ถูกใช้งานแล้ว"})
+			return
+		}
+	}
+
+	// ถ้าไม่เจอแสดงว่าว่าง (Available)
+	c.JSON(http.StatusOK, gin.H{"available": true})
 }

@@ -14,19 +14,22 @@ export default function SliderCaptcha({ onSuccess }: Props) {
   const [bgImage, setBgImage] = useState<string>("");
   const [pieceImage, setPieceImage] = useState<string>("");
   const [pieceY, setPieceY] = useState<number>(0);
-  const [sliderValue, setSliderValue] = useState<number>(0); // ค่า X ที่ User ลาก
+  const [sliderValue, setSliderValue] = useState<number>(0); 
   const [status, setStatus] = useState<string | null>(null);
-  const [startTime, setStartTime] = useState<number>(0); // จับเวลา
+  
+  // 🔥 1. เปลี่ยนเป็นจับเวลาแบบ Absolute (เวลาเริ่มตั้งแต่เห็นหน้าเว็บครั้งแรก)
+  const [absoluteStartTime, setAbsoluteStartTime] = useState<number>(0); 
+  
   const [isLoading, setIsLoading] = useState(true);
-
   const [captchaWidth, setCaptchaWidth] = useState<number>(300); 
   const [captchaHeight, setCaptchaHeight] = useState<number>(150);
   const [isError, setIsError] = useState(false);
 
   const router = useRouter();
 
-  // โหลดโจทย์เมื่อเปิดหน้าเว็บ
+  // 🔥 2. เริ่มจับเวลา "ครั้งแรกและครั้งเดียว" ทันทีที่โหลด Component ขึ้นมา
   useEffect(() => {
+    setAbsoluteStartTime(Date.now());
     fetchCaptcha();
   }, []);
 
@@ -43,7 +46,9 @@ export default function SliderCaptcha({ onSuccess }: Props) {
       setPieceY(res.data.y);
       if (res.data.width) setCaptchaWidth(res.data.width);
       if (res.data.height) setCaptchaHeight(res.data.height);
-      setStartTime(Date.now()); // เริ่มจับเวลา
+      
+      // 🔥 3. เอาการเซ็ตเวลาออกจากตรงนี้ เพื่อไม่ให้เวลามันรีเซ็ตตอนลากพลาดแล้วโหลดโจทย์ใหม่
+
     } catch (error) {
       console.error("Error loading captcha:", error);
       setStatus("Error loading captcha");
@@ -53,17 +58,17 @@ export default function SliderCaptcha({ onSuccess }: Props) {
   };
 
   const handleVerify = async () => {
-    // หยุด user ไม่ให้กดรัวๆ ระหว่างรอผล
     if (isLoading) return;
 
-    const timeTaken = Date.now() - startTime;
+    // 🔥 4. คำนวณเวลารวมตั้งแต่โหลดหน้าเว็บ จนกระทั่งลาก Slider ปล่อยมือ
+    const durationTotal = Date.now() - absoluteStartTime;
 
     try {
       const res = await axios.post(
         "http://localhost:8080/api/slider/verify",
         {
-          x: sliderValue, // ส่งตำแหน่งที่ลากไป
-          timeTaken: timeTaken,
+          x: sliderValue, 
+          timeTaken: durationTotal, // ส่งมิลลิวินาทีให้ Backend ตามเดิม
         },
         { withCredentials: true }
       );
@@ -75,14 +80,13 @@ export default function SliderCaptcha({ onSuccess }: Props) {
           if (onSuccess) {
             onSuccess();
           } else {
-            router.push("/");
+            router.push("/survey");
           }
         }, 1500);
       } else {
         setStatus("Incorrect! ❌");
         setIsError(true);
         setTimeout(() => setIsError(false), 400);
-        // ถ้าผิด ให้รอ 1 วิ แล้วโหลดโจทย์ข้อใหม่ (เพื่อความปลอดภัย)
         setTimeout(() => {
             fetchCaptcha();
         }, 1000);
@@ -105,11 +109,9 @@ export default function SliderCaptcha({ onSuccess }: Props) {
         </div>
       ) : (
         <div className="relative group">
-            {/* 1. Container หลัก (ขนาดต้องเท่ากับรูปที่ Backend ส่งมา) */}
             <div className="relative rounded-lg overflow-hidden shadow-inner border border-gray-300"
             style={{ width: `${captchaWidth}px`, height: `${captchaHeight}px` }}>
                 
-                {/* 1.1 รูปพื้นหลัง: ใส่ {bgImage && ...} ครอบไว้ */}
                 {bgImage && (
                     <img 
                         src={bgImage} 
@@ -118,21 +120,19 @@ export default function SliderCaptcha({ onSuccess }: Props) {
                     />
                 )}
 
-                {/* 1.2 ชิ้นจิ๊กซอว์ (Absolute Position) */}
                 <img
                     src={pieceImage}
                     alt="Puzzle Piece"
                     className="absolute z-10 drop-shadow-[0_0_5px_rgba(255,255,255,0.8)] drop-shadow-[0_4px_6px_rgba(0,0,0,0.5)]"
                     style={{
-                        top: `${pieceY}px`,      // Y มาจาก Backend
-                        left: `${sliderValue}px`, // X มาจาก Slider ที่ User ลาก
-                        width: "70px",           // ต้องตรงกับ Backend
+                        top: `${pieceY}px`,      
+                        left: `${sliderValue}px`, 
+                        width: "70px",           
                         height: "70px",
                     }}
                 />
             </div>
 
-            {/* 2. Slider Control (วางข้างล่าง) */}
             <div className="mt-4 w-full">
                 <p className="text-sm text-gray-500 mb-2 text-center">Drag the slider to fit the puzzle</p>
                 <input
@@ -141,8 +141,8 @@ export default function SliderCaptcha({ onSuccess }: Props) {
                     max={captchaWidth - 50}
                     value={sliderValue}
                     onChange={(e) => setSliderValue(Number(e.target.value))}
-                    onMouseUp={handleVerify} // ปล่อยเมาส์แล้วส่งตรวจ
-                    onTouchEnd={handleVerify} // สำหรับมือถือ
+                    onMouseUp={handleVerify} 
+                    onTouchEnd={handleVerify} 
                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                     disabled={status === "Correct! 🎉"}
                 />
@@ -150,7 +150,6 @@ export default function SliderCaptcha({ onSuccess }: Props) {
         </div>
       )}
 
-      {/* Status Message */}
       {status && (
         <div className={`mt-2 font-semibold text-lg ${status.includes("Correct") ? "text-green-600" : "text-red-600"}`}>
           {status}
