@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
 function ChallengeContent() {
@@ -11,6 +11,14 @@ function ChallengeContent() {
 
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // State สำหรับจับเวลา
+  const [startTime, setStartTime] = useState<number>(0);
+
+  // เริ่มจับเวลาทันทีที่หน้าโหลดเสร็จและพร้อมให้กรอก
+  useEffect(() => {
+    setStartTime(Date.now());
+  }, []);
 
   const handleVerifyOTP = async () => {
     if (!otp) {
@@ -33,13 +41,28 @@ function ChallengeContent() {
       const data = await res.json();
 
       if (data.success) {
+        // คำนวณเวลาที่ใช้ในหน้า 2FA และบันทึกลง sessionStorage
+        const endTime = Date.now();
+        const timeSpent = (endTime - startTime) / 1000; // วินาที
+        sessionStorage.setItem('time_2fa', timeSpent.toString());
+
         document.cookie = "is-logged-in=true; path=/; max-age=3600";
-        alert("OTP Verified!");
-        router.push('/'); // go to captcha
+        
+        // 🔥 1. ดึงประเภท CAPTCHA ที่ Backend สุ่มแบบ Round-Robin มาให้ 
+        // (จะได้ค่าเป็น "math", "text", "slider", หรือ "cloudflare")
+        const nextCaptchaType = data.next_captcha;
+        
+        // 🔥 2. บันทึกประเภทนี้ลง sessionStorage ไว้เลย หน้า Survey จะได้ดึงไปใช้ส่ง Google Sheets ถูกต้อง
+        sessionStorage.setItem('captcha_type', nextCaptchaType);
+
+        // 🔥 3. เปลี่ยนจากการไป '/captcha' รวมๆ เป็นการยิงไปที่หน้าย่อยโดยตรง
+        router.push(`/captcha/${nextCaptchaType}`); 
+
       } else {
         alert("Incorrect OTP: " + (data.message || ""));
       }
     } catch (error) {
+      console.error(error); // เพิ่ม log ไว้ดูเวลาพัง
       alert("Error verifying OTP");
     }
 

@@ -30,6 +30,14 @@ export default function RegisterPage() {
 
   const [isHovering, setIsHovering] = useState(false);
 
+  // 🔥 1. ส่วนที่เพิ่ม: State สำหรับเก็บเวลาที่เริ่มเข้าหน้า Register
+  const [startTime, setStartTime] = useState<number>(0);
+
+  // 🔥 2. ส่วนที่เพิ่ม: เริ่มจับเวลาเมื่อ Component โหลดเสร็จ (Client-side)
+  useEffect(() => {
+    setStartTime(Date.now());
+  }, []);
+
   useEffect(() => {
     if (isGoogleRegister) {
       setFormData(prev => ({
@@ -46,7 +54,6 @@ export default function RegisterPage() {
       const res = await fetch(`http://localhost:8080/api/check-availability?${field}=${value}`);
       const data = await res.json();
       if (!data.available) {
-        // แปลข้อความจาก Backend หรือใช้ข้อความภาษาอังกฤษตรงนี้แทน
         const msg = field === 'username' ? 'Username is already taken' : 'Email is already taken';
         setErrors(prev => ({ ...prev, [field]: msg }));
       }
@@ -87,7 +94,6 @@ export default function RegisterPage() {
         break;
 
       case 'confirmPassword':
-        // 🔥 แก้ไข: เพิ่มเช็คว่าห้ามว่างด้วย
         if (!value.trim()) {
             errorMsg = 'Please confirm your password';
         } else if (value !== allData.password) {
@@ -107,9 +113,7 @@ export default function RegisterPage() {
     const errorMsg = getFieldError(name, value, newFormData);
     setErrors(prev => ({ ...prev, [name]: errorMsg }));
 
-    // ถ้าแก้ Password ต้องเช็ก Confirm Password ใหม่ด้วยเสมอ
     if (name === 'password') {
-        // ส่ง newFormData เข้าไปเพื่อให้มันเช็คกับ Password ตัวใหม่ล่าสุด
         const confirmError = getFieldError('confirmPassword', newFormData.confirmPassword, newFormData);
         setErrors(prev => ({ ...prev, confirmPassword: confirmError }));
     }
@@ -162,6 +166,11 @@ export default function RegisterPage() {
       const data = await res.json();
 
       if (res.ok) {
+        // 🔥 3. ส่วนที่เพิ่ม: คำนวณเวลาที่ใช้เมื่อสมัครสำเร็จและบันทึกลง sessionStorage
+        const endTime = Date.now();
+        const timeSpent = (endTime - startTime) / 1000; // แปลงเป็นวินาที (Seconds)
+        sessionStorage.setItem('time_reg', timeSpent.toString());
+        
         alert(data.message || 'Registration Successful');
         router.push('/login');
       } else {

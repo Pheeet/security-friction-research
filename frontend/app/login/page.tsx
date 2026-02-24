@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+// 🔥 1. เพิ่ม useEffect เข้ามาใน import
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -19,6 +20,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const router = useRouter();
 
+  // 🔥 2. State สำหรับจับเวลา
+  const [startTime, setStartTime] = useState<number>(0);
+
+  // 🔥 3. เริ่มจับเวลาเมื่อโหลดหน้าเสร็จ
+  useEffect(() => {
+    setStartTime(Date.now());
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -32,13 +41,17 @@ export default function LoginPage() {
         const data = await res.json();
 
         if (res.ok) {
+            // 🔥 4. คำนวณเวลาและบันทึกลง sessionStorage ทันทีที่ Login สำเร็จ
+            const endTime = Date.now();
+            const timeSpent = (endTime - startTime) / 1000;
+            sessionStorage.setItem('time_login', timeSpent.toString());
+
             // --- จุดสำคัญ: เช็คว่า Backend สั่งให้ทำ 2FA ไหม ---
             if (data.require_2fa) {
-                // ถ้าต้องทำ 2FA ให้เด้งไปหน้า Challenge พร้อมข้อมูลที่จำเป็น
-                // ส่ง userId, method (email/push), และ refCode ไปด้วย
                 router.push(`/2fa/challenge?userId=${data.user_id}&method=${data.method}&refCode=${data.ref_code}`);
             } else {
-                // ถ้าไม่ต้องทำ (เช่น login ครั้งถัดๆ ไป) ก็เข้าหน้าแรกเลย
+                // ⚠️ ข้อควรระวังสำหรับงานวิจัย: ถ้าไม่บังคับ 2FA User คนนี้จะไม่ถูกส่งไปทำ CAPTCHA ต่อ (ตาม Flow ที่ตั้งไว้)
+                // ถ้าอยากบังคับให้ทุกคนไป CAPTCHA อาจจะต้องเปลี่ยน router.push('/') เป็น router.push('/captcha') แทนครับ
                 document.cookie = "is-logged-in=true; path=/; max-age=3600";
                 alert('Login สำเร็จ!');
                 router.push('/');
@@ -53,7 +66,8 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = () => {
-    // ลิงก์ไป Backend Google Login
+    // ⚠️ หมายเหตุ: การ Login ด้วย Google ผ่าน window.location.href จะทำให้การจับเวลาด้วยวิธีนี้คลาดเคลื่อนได้
+    // เพราะเป็นการสลับหน้าเว็บไปที่ระบบของ Google ถ้าต้องการเน้นเก็บเวลาชัวร์ๆ แนะนำให้ User กลุ่มทดสอบใช้การพิมพ์ Login ปกติครับ
     window.location.href = "http://localhost:8080/api/auth/google/login";
   };
 

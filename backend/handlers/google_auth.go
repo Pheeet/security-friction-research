@@ -7,7 +7,9 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"backend-api/database"
@@ -67,20 +69,24 @@ func GoogleCallback(c *gin.Context) {
 
 	json.Unmarshal(content, &googleUser)
 
+	googleUser.Email = strings.ToLower(googleUser.Email)
+
 	var user database.User
 
 	// -----------------------------
 	// ❌ ถ้าไม่มี user → ไป Register
 	// -----------------------------
 	if err := database.DB.Where("email = ?", googleUser.Email).First(&user).Error; err != nil {
-		// ตรวจสอบบรรทัดที่ Redirect ไปหน้า Register
+
+		// ใช้ url.QueryEscape เพื่อป้องกัน URL พังจากเครื่องหมายเว้นวรรค หรือภาษาไทย
 		registerURL := fmt.Sprintf(
 			"http://localhost:3000/register?provider=google&email=%s&fullname=%s",
-			googleUser.Email,
-			googleUser.Name, // ต้องมั่นใจว่า googleUser.Name มีค่าและถูกแนบไปตรงนี้
+			url.QueryEscape(googleUser.Email),
+			url.QueryEscape(googleUser.Name),
 		)
 
-		c.Redirect(http.StatusTemporaryRedirect, registerURL)
+		// เปลี่ยนเป็น StatusFound (302)
+		c.Redirect(http.StatusFound, registerURL)
 		return
 	}
 
@@ -116,8 +122,9 @@ func GoogleCallback(c *gin.Context) {
 	twoFAURL := fmt.Sprintf(
 		"http://localhost:3000/2fa/challenge?userId=%d&method=email&refCode=%s",
 		user.ID,
-		refCode,
+		refCode, // ตรง refCode ไม่มีเว้นวรรคอยู่แล้ว ไม่ต้อง Escape ก็ได้ครับ
 	)
 
-	c.Redirect(http.StatusTemporaryRedirect, twoFAURL)
+	// เปลี่ยนเป็น StatusFound (302) เช่นกัน
+	c.Redirect(http.StatusFound, twoFAURL)
 }
