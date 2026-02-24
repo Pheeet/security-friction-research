@@ -7,7 +7,7 @@ export default function Navbar() {
   const router = useRouter();
 
   // 🚫 รายชื่อหน้าที่ "ไม่ต้องการ" ให้โชว์ปุ่ม Logout
-  const hiddenPaths = ['/login', '/register', '/2fa'];
+  const hiddenPaths = ['/login', '/register'];
     if (hiddenPaths.some((path) => pathname.startsWith(path))) {
     return null;
   }

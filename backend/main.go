@@ -62,6 +62,7 @@ func main() {
 		// --- Route Google Auth ---
 		api.GET("/auth/google/login", handlers.GoogleLogin)       // ปุ่มกด Login
 		api.GET("/auth/google/callback", handlers.GoogleCallback) // Google ส่งกลับมาที่นี่
+		api.POST("/2fa/request", handlers.RequestOTPHandler)
 
 		// --- 2FA Route ---
 		api.POST("/2fa/verify", handlers.Verify2FAHandler)

@@ -5,7 +5,11 @@ import Script from "next/script";
 import axios, { formToJSON } from "axios";
 import { useRouter } from "next/navigation";
 
-export default function TurnstileCaptcha() {
+interface Props {
+  onVerify?: () => void;
+}
+
+export default function TurnstileCaptcha({ onVerify }: Props) {
   const [status, setStatus] = useState<string | null>(null);
   const router = useRouter();
 
@@ -59,7 +63,13 @@ export default function TurnstileCaptcha() {
 
             if (res.data.success) {
               setStatus("Correct!");
-              setTimeout(() => router.push("/"), 1500);
+              setTimeout(() => {
+                if (onVerify) {
+                  onVerify();
+                } else {
+                  router.push("/");
+                }
+              }, 1500);
             } else {
               console.error("Backend Error:", res.data);
               setStatus(`Verification Failed: ${res.data.message || "Unknown error"}`);

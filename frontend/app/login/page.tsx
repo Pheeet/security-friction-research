@@ -36,7 +36,7 @@ export default function LoginPage() {
             if (data.require_2fa) {
                 // ถ้าต้องทำ 2FA ให้เด้งไปหน้า Challenge พร้อมข้อมูลที่จำเป็น
                 // ส่ง userId, method (email/push), และ refCode ไปด้วย
-                router.push(`/2fa/challenge?userId=${data.user_id}&method=${data.method}&refCode=${data.ref_code}`);
+                router.push(`/security-checkpoint?userId=${data.user_id}&method=${data.method}`);
             } else {
                 // ถ้าไม่ต้องทำ (เช่น login ครั้งถัดๆ ไป) ก็เข้าหน้าแรกเลย
                 document.cookie = "is-logged-in=true; path=/; max-age=3600";

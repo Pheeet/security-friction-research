@@ -54,7 +54,7 @@ services:
       - /app/.next
 
     environment:
-      - NODE_OPTIONS=--max-old-space-size=4096
+      - NODE_OPTIONS=--max-old-space-size=2048
       - WATCHPACK_POLLING=true
       - NEXT_PUBLIC_TURNSTILE_SITE_KEY=${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
     

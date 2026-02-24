@@ -7,9 +7,11 @@ import { useRouter } from "next/navigation";
 interface Props {
   type: "text" | "math";
   title: string;
+  onSuccess?: () => void; 
 }
 
-export default function CaptchaTest({ type, title }: Props) {
+
+export default function CaptchaTest({ type, title, onSuccess }: Props) {
   const router = useRouter();
   const [imageURL, setImageURL] = useState("");
   const [captchaId, setCaptchaId] = useState("");
@@ -56,9 +58,14 @@ export default function CaptchaTest({ type, title }: Props) {
       });
 
       if (res.data.success) {
-        setTimeout(() => router.push("/"), 1500); 
-      } else {
-        
+        setTimeout(() => {
+          if (onSuccess) {
+            onSuccess();
+          } else {
+            router.push("/");
+          }
+        }, 1500); 
+      } else {  
         setIsError(true);
         setTimeout(() => setIsError(false), 400);
         setInput("");

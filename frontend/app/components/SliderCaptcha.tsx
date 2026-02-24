@@ -4,7 +4,13 @@ import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 
-export default function SliderCaptcha() {
+
+interface Props {
+  onSuccess?: () => void;
+}
+
+
+export default function SliderCaptcha({ onSuccess }: Props) {
   const [bgImage, setBgImage] = useState<string>("");
   const [pieceImage, setPieceImage] = useState<string>("");
   const [pieceY, setPieceY] = useState<number>(0);
@@ -64,7 +70,14 @@ export default function SliderCaptcha() {
 
       if (res.data.success) {
         setStatus("Correct! 🎉");
-        setTimeout(() => router.push("/"), 1500); // ผ่านแล้วไปหน้าแรก
+        
+        setTimeout(() => {
+          if (onSuccess) {
+            onSuccess();
+          } else {
+            router.push("/");
+          }
+        }, 1500);
       } else {
         setStatus("Incorrect! ❌");
         setIsError(true);

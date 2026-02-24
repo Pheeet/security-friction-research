@@ -3,7 +3,6 @@ package handlers
 import (
 	"backend-api/database"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -160,44 +159,18 @@ func LoginHandler(c *gin.Context) {
 	if user.Provider == "google" {
 		method = "push"
 	}
-
-	refCode := fmt.Sprintf("%04d", rand.Intn(10000))
-
-	if method == "email" {
-		otp := fmt.Sprintf("%06d", rand.Intn(1000000))
-		user.TwoFACode = otp
-		user.TwoFARef = refCode
-		user.TwoFAExpiry = time.Now().Add(5 * time.Minute)
-
-		// --- จุดที่เปลี่ยน: ส่งเมลจริงๆ ---
-		fmt.Printf("Sending Email to %s...\n", user.Email) // Log บอกเฉยๆ
-
-		// เรียกฟังก์ชันส่งเมล (ทำงานแบบ Go Routine เพื่อไม่ให้หน้าเว็บค้างนาน)
-		go func(targetEmail, targetOTP, targetRef string) {
-			err := sendEmailOTP(targetEmail, targetOTP, targetRef)
-			if err != nil {
-				fmt.Printf("Error sending email: %v\n", err)
-			} else {
-				fmt.Printf("Email sent successfully to %s\n", targetEmail)
-			}
-		}(user.Email, otp, refCode)
-		// -----------------------------
-
-	} else if method == "push" {
-		user.IsPushApproved = false
-		user.TwoFARef = refCode
-		link := fmt.Sprintf("http://localhost:8080/api/2fa/simulate-push-approve?user_id=%d", user.ID)
-		fmt.Printf("\n--- [PUSH NOTI MOCK] ---\nApprove Link: %s\n----------------------\n", link)
-	}
-
+	user.TwoFACode = ""
+	user.TwoFARef = ""
+	user.IsPushApproved = false
+	user.TwoFAExpiry = time.Time{}
 	database.DB.Save(&user)
 
 	c.JSON(http.StatusOK, TwoFAResponse{
-		Message:    "Please verify 2FA",
+		Message:    "Please complete security check",
 		Require2FA: true,
 		UserID:     user.ID,
 		Method:     method,
-		RefCode:    refCode,
+		// ไม่ต้องส่ง RefCode กลับไปตอนนี้ก็ได้ เพราะเดี๋ยว RequestOTPHandler จะสร้างให้ใหม่
 	})
 }
 
@@ -225,10 +198,16 @@ func Verify2FAHandler(c *gin.Context) {
 		return
 	}
 
+	if req.OTP == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรุณากรอกรหัส OTP"})
+		return
+	}
+
 	// ตรวจสอบ OTP
 	if user.TwoFACode == req.OTP && time.Now().Before(user.TwoFAExpiry) {
 		// ผ่าน! ล้าง OTP ทิ้ง
 		user.TwoFACode = ""
+		user.TwoFAExpiry = time.Time{}
 		database.DB.Save(&user)
 
 		c.JSON(http.StatusOK, gin.H{
@@ -237,7 +216,7 @@ func Verify2FAHandler(c *gin.Context) {
 			"user":    user.Username, // ส่งกลับไปเผื่อ Frontend ใช้แสดงผล
 		})
 	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid OTP"})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "OTP ไม่ถูกต้องหรือหมดอายุแล้ว"})
 	}
 }
 
