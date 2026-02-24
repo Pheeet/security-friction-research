@@ -7,10 +7,11 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 
 interface Props {
+  userId: string;
   onVerify?: () => void;
 }
 
-export default function TurnstileCaptcha({ onVerify }: Props) {
+export default function TurnstileCaptcha({ userId, onVerify }: Props) {
   const [status, setStatus] = useState<string | null>(null);
   const router = useRouter();
 
@@ -57,8 +58,8 @@ export default function TurnstileCaptcha({ onVerify }: Props) {
           try {
             const res = await axios.post(
               "http://localhost:8080/api/turnstile/verify",
-              { token, timeTaken }, // ส่ง timeTaken (ms) ไปให้ Backend เผื่อเก็บ Log
-              { withCredentials: true }
+              { userId: userId, token, timeTaken }, // ส่ง timeTaken (ms) ไปให้ Backend เผื่อเก็บ Log
+              { withCredentials: true },
             );
 
             if (res.data.success) {
@@ -68,7 +69,7 @@ export default function TurnstileCaptcha({ onVerify }: Props) {
               setStatus("Correct!");
 
               isVerifying.current = false;
-              
+
               setTimeout(() => {
                 if (onVerify) {
                   onVerify();

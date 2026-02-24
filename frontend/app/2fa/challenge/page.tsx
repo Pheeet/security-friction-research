@@ -30,7 +30,7 @@ function ChallengeContent() {
     }
 
     setLoading(true);
-    const timeTakenMs = Date.now() - startTime;
+    const timeTakenMs = Date.now() - startTime; 
     try {
       const res = await fetch('http://localhost:8080/api/2fa/verify', {
         method: 'POST',

@@ -7,13 +7,14 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 
 interface Props {
+  userId: string;
   type: "text" | "math";
   title: string;
   onSuccess?: () => void; 
 }
 
 
-export default function CaptchaTest({ type, title, onSuccess }: Props) {
+export default function CaptchaTest({ userId, type, title, onSuccess }: Props) {
   const router = useRouter();
   const [imageURL, setImageURL] = useState("");
   const [captchaId, setCaptchaId] = useState("");
@@ -53,6 +54,7 @@ export default function CaptchaTest({ type, title, onSuccess }: Props) {
 
     try {
       const res = await axios.post("http://localhost:8080/api/verify", {
+        userId: userId,
         captchaId: captchaId,
         captchaType: type,
         answer: input,

@@ -39,7 +39,12 @@ function MathContent() {
 
   return (
     // ส่งฟังก์ชัน handleSuccess เข้าไปเป็น Props
-    <CaptchaTest type="math" title="Solve this math problem" onSuccess={handleSuccess} />
+    <CaptchaTest 
+      userId={userId || ""} 
+      type="math" 
+      title="Solve this math problem" 
+      onSuccess={handleSuccess} 
+    />
   );
 }
 

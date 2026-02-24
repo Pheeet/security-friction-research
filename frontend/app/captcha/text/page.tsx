@@ -38,6 +38,7 @@ function TextContent() {
   return (
     // 🟢 จุดสังเกต: ส่ง type="text" และเปลี่ยน Title ให้เข้ากับโจทย์
     <CaptchaTest 
+      userId={userId || ""}
       type="text" 
       title="กรุณาพิมพ์ตัวอักษรที่เห็นในภาพ" 
       onSuccess={handleSuccess} 

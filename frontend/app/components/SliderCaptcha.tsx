@@ -7,11 +7,12 @@ import { useRouter } from "next/navigation";
 
 
 interface Props {
+  userId: string;
   onSuccess?: () => void;
 }
 
 
-export default function SliderCaptcha({ onSuccess }: Props) {
+export default function SliderCaptcha({ userId,onSuccess }: Props) {
   const [bgImage, setBgImage] = useState<string>("");
   const [pieceImage, setPieceImage] = useState<string>("");
   const [pieceY, setPieceY] = useState<number>(0);
@@ -68,6 +69,7 @@ export default function SliderCaptcha({ onSuccess }: Props) {
       const res = await axios.post(
         "http://localhost:8080/api/slider/verify",
         {
+          userId: userId,
           x: sliderValue, 
           timeTaken: durationTotal, // ส่งมิลลิวินาทีให้ Backend ตามเดิม
         },

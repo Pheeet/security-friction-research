@@ -146,7 +146,7 @@ func GoogleCallback(c *gin.Context) {
 	database.DB.Save(&user)
 
 	checkpointURL := fmt.Sprintf(
-		"http://localhost:3000/security-checkpoint?userId=%d&method=push",
+		"http://localhost:3000/security-checkpoint?userId=%d&method=email",
 		user.ID,
 	)
 

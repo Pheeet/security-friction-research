@@ -29,7 +29,7 @@ func main() {
 
 	// 2. แก้ปัญหา CORS (ให้ Frontend ยิงเข้ามาได้)
 	config := cors.DefaultConfig()
-	config.AllowAllOrigins = true
+	config.AllowOrigins = []string{"http://localhost:3000", "http://127.0.0.1:3000"}
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization", "Accept", "Cookie"}
 	config.ExposeHeaders = []string{"Content-Length", "Set-Cookie"}
@@ -63,13 +63,15 @@ func main() {
 		api.GET("/auth/google/callback", handlers.GoogleCallback)
 		api.POST("/2fa/request", handlers.RequestOTPHandler)
 		api.POST("/2fa/verify", handlers.Verify2FAHandler) // ตัวนี้เป็นคนแจก JWT
+		api.GET("/2fa/check-push", handlers.CheckPushStatus)
+		api.GET("/2fa/simulate-push-approve", handlers.SimulatePushApprove)
 
 		// --- Protected Routes (ต้องผ่าน 2FA และมี JWT แล้วเท่านั้น) ---
 		protected := api.Group("/research")
 		protected.Use(middleware.AuthMiddleware()) // ใช้ Middleware กั้นตรงนี้
 		{
 			// API สุดท้ายที่จะรวบรวม Data ทั้งหมด
-			//protected.POST("/survey", handlers.SubmitSurveyHandler)
+			protected.POST("/survey", handlers.SubmitSurveyHandler)
 		}
 	}
 

@@ -1,4 +1,4 @@
-//handlers/auth.go
+// handlers/auth.go
 package handlers
 
 import (
@@ -71,8 +71,8 @@ func sendEmailOTP(to string, otp string, refCode string) error {
 
 // 1. สำหรับ Login (ใช้แค่ User/Pass)
 type LoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
 	TimeLogin int64  `json:"time_login"`
 }
 
@@ -88,7 +88,7 @@ type TwoFAResponse struct {
 	Message    string `json:"message"`
 	Require2FA bool   `json:"require_2fa"`
 	UserID     uint   `json:"user_id"`
-	Method     string `json:"method"`   // email, push
+	Method     string `json:"method"` // email, push
 	SessionID  string `json:"session_id"`
 }
 
@@ -158,7 +158,6 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	
 	// [RESEARCH LOGIC] สร้าง SessionID และเริ่มบันทึก Journey
 	sessionID := uuid.New().String()
 	journey := database.ResearchJourney{
@@ -171,9 +170,9 @@ func LoginHandler(c *gin.Context) {
 
 	// --- 2FA Logic ---
 	method := "email"
-	if user.Provider == "google" {
-		method = "push"
-	}
+	//if user.Provider == "google" {
+	//	method = "push"
+	//}
 	user.TwoFACode = ""
 	user.TwoFARef = ""
 	user.IsPushApproved = false
@@ -193,8 +192,8 @@ func LoginHandler(c *gin.Context) {
 // --- เพิ่ม Handler ใหม่สำหรับตรวจ 2FA ---
 
 type Verify2FARequest struct {
-	UserID uint   `json:"user_id"`
-	OTP    string `json:"otp"` // ใช้เฉพาะ Email OTP
+	UserID    uint   `json:"user_id"`
+	OTP       string `json:"otp"` // ใช้เฉพาะ Email OTP
 	TimeTaken int64  `json:"time_taken"`
 }
 
@@ -229,7 +228,7 @@ func Verify2FAHandler(c *gin.Context) {
 			journey.CurrentStage = "2fa_success"
 			database.DB.Save(&journey)
 		}
-		
+
 		// ผ่าน! ล้าง OTP ทิ้ง
 		user.TwoFACode = ""
 		user.TwoFAExpiry = time.Time{}
@@ -246,7 +245,7 @@ func Verify2FAHandler(c *gin.Context) {
 			"user_id": user.ID,
 			"exp":     time.Now().Add(time.Hour * 24).Unix(),
 		})
-		
+
 		tokenString, err := token.SignedString([]byte(secret))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate token"})
@@ -261,7 +260,7 @@ func Verify2FAHandler(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"message": "Login Success!",
-			"user":    user.Username, 
+			"user":    user.Username,
 		})
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "OTP ไม่ถูกต้องหรือหมดอายุแล้ว"})

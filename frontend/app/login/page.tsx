@@ -31,14 +31,14 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    const timeSpentMs = Date.now() - startTime;
     try {
         const res = await fetch('http://localhost:8080/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password }),
+            body: JSON.stringify({ username, password , time_login: timeSpentMs}),
         });
-
+        
         const data = await res.json();
 
         if (res.ok) {
@@ -56,7 +56,7 @@ export default function LoginPage() {
                 // ⚠️ ข้อควรระวังสำหรับงานวิจัย: ถ้าไม่บังคับ 2FA User คนนี้จะไม่ถูกส่งไปทำ CAPTCHA ต่อ (ตาม Flow ที่ตั้งไว้)
                 // ถ้าอยากบังคับให้ทุกคนไป CAPTCHA อาจจะต้องเปลี่ยน router.push('/') เป็น router.push('/captcha') แทนครับ
                 alert('Login สำเร็จ!');
-                router.push('/security-checkpoint?userId=${data.user_id}');
+                router.push(`/security-checkpoint?userId=${data.user_id}`);
             }
         } else {
             alert(data.error || 'Login ไม่สำเร็จ');
