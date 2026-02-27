@@ -59,7 +59,7 @@ func SubmitSurveyHandler(c *gin.Context) {
 	go syncDataToGoogleSheets(journey)
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true, 
+		"success": true,
 		"message": "ขอบคุณสำหรับข้อมูล! งานวิจัยบันทึกเรียบร้อยแล้ว",
 	})
 }
@@ -72,9 +72,19 @@ func syncDataToGoogleSheets(j database.ResearchJourney) {
 		return
 	}
 
+	loc, err := time.LoadLocation("Asia/Bangkok")
+	var timeStr string
+	if err != nil {
+		// ถ้าโหลดโซนเวลาไม่สำเร็จ (เช่น Server ไม่มีไฟล์โซนเวลา) ให้ใช้เวลาเครื่องไปก่อน
+		timeStr = time.Now().Format("2006-01-02 15:04:05")
+	} else {
+		// แปลงเวลาปัจจุบันให้อยู่ในโซนกรุงเทพฯ
+		timeStr = time.Now().In(loc).Format("2006-01-02 15:04:05")
+	}
+
 	// รวบรวม Data ชุดสมบูรณ์
 	payload := map[string]interface{}{
-		"timestamp":    time.Now().Format("2006-01-02 15:04:05"),
+		"timestamp":    timeStr,
 		"user_id":      j.UserID,
 		"session_id":   j.SessionID,
 		"login_method": j.LoginMethod,
@@ -83,14 +93,14 @@ func syncDataToGoogleSheets(j database.ResearchJourney) {
 		"captcha_type": j.CaptchaType,
 		"time_2fa":     j.Time2FA,
 		"q1":           j.Q1,
-        "q2":           j.Q2,
-        "q3":           j.Q3,
-        "q4":           j.Q4,
-        "q5":           j.Q5,
+		"q2":           j.Q2,
+		"q3":           j.Q3,
+		"q4":           j.Q4,
+		"q5":           j.Q5,
 	}
 
 	jsonPayload, _ := json.Marshal(payload)
-	
+
 	// ยิง POST ไปที่ Apps Script
 	resp, err := http.Post(scriptURL, "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
