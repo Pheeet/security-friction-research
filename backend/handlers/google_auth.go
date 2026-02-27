@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -130,11 +131,25 @@ func GoogleCallback(c *gin.Context) {
 	// )
 
 	// c.Redirect(http.StatusTemporaryRedirect, twoFAURL)
+	var timeLogin int64 = 0
+	cookieStr, err := c.Cookie("sso_start_time")
+	if err == nil && cookieStr != "" {
+		// แปลงข้อความจาก Cookie เป็นตัวเลข Int64
+		startTimeMs, parseErr := strconv.ParseInt(cookieStr, 10, 64)
+		if parseErr == nil {
+			// เอาเวลาปัจจุบัน (ms) ลบด้วยเวลาตอนโหลดหน้าเว็บ
+			timeLogin = time.Now().UnixMilli() - startTimeMs
+		}
+		// สั่งลบ Cookie ทิ้งเพื่อความสะอาด
+		c.SetCookie("sso_start_time", "", -1, "/", "localhost", false, true)
+	}
+
 	sessionID := uuid.New().String()
 	journey := database.ResearchJourney{
 		UserID:       user.ID,
 		SessionID:    sessionID,
-		TimeLogin:    0, // Google Login จับเวลาหน้าเว็บไม่ได้ แต่เริ่มนับด่านนี้เป็นจุดเริ่ม
+		LoginMethod:  "sso",
+		TimeLogin:    timeLogin,
 		CurrentStage: "login_success",
 	}
 	database.DB.Create(&journey)

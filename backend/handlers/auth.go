@@ -163,6 +163,7 @@ func LoginHandler(c *gin.Context) {
 	journey := database.ResearchJourney{
 		UserID:       user.ID,
 		SessionID:    sessionID,
+		LoginMethod:  "local",
 		TimeLogin:    creds.TimeLogin, // บันทึกเวลาที่ใช้ในหน้า Login
 		CurrentStage: "login_success",
 	}

@@ -77,6 +77,7 @@ func syncDataToGoogleSheets(j database.ResearchJourney) {
 		"timestamp":    time.Now().Format("2006-01-02 15:04:05"),
 		"user_id":      j.UserID,
 		"session_id":   j.SessionID,
+		"login_method": j.LoginMethod,
 		"time_login":   j.TimeLogin,
 		"time_captcha": j.TimeCaptcha,
 		"captcha_type": j.CaptchaType,

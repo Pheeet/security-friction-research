@@ -30,6 +30,7 @@ type ResearchJourney struct {
 	gorm.Model
 	UserID       uint   `json:"user_id"`
 	SessionID    string `json:"session_id"` // เอาไว้ผูกกับตอน Login
+	LoginMethod  string `json:"login_method"`
 	
 	// --- เก็บเวลาแต่ละด่าน (มิลลิวินาที) ---
 	TimeLogin    int64  `json:"time_login"`

@@ -70,6 +70,7 @@ export default function LoginPage() {
   const handleGoogleLogin = () => {
     // ⚠️ หมายเหตุ: การ Login ด้วย Google ผ่าน window.location.href จะทำให้การจับเวลาด้วยวิธีนี้คลาดเคลื่อนได้
     // เพราะเป็นการสลับหน้าเว็บไปที่ระบบของ Google ถ้าต้องการเน้นเก็บเวลาชัวร์ๆ แนะนำให้ User กลุ่มทดสอบใช้การพิมพ์ Login ปกติครับ
+    document.cookie = `sso_start_time=${startTime}; path=/; max-age=3600`;
     window.location.href = "http://localhost:8080/api/auth/google/login";
   };
 
