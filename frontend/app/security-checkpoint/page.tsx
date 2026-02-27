@@ -1,5 +1,3 @@
-//app/security-checkpoint
-
 'use client';
 
 import { useEffect, Suspense } from 'react';
@@ -14,14 +12,29 @@ function CheckpointRedirector() {
     const userId = searchParams.get('userId');
     const method = searchParams.get('method') || 'email';
 
-    // 🎲 สุ่ม Path ของ Captcha ทั้ง 4 แบบ (ให้ตรงกับชื่อโฟลเดอร์ที่คุณมี)
+    // ใช้ Round-Robin แทน Random
     const routes = ['text', 'math', 'slider', 'cloudflare'];
-    const randomRoute = routes[Math.floor(Math.random() * routes.length)];
+    
+    // แปลง userId เป็นตัวเลข (ฐาน 10)
+    const numericUserId = parseInt(userId || '0', 10);
+    
+    // 🔥 ใช้การหารเอาเศษ (Modulo) 
+    // ถ้า userId = 1 -> ได้ 1 (math)
+    // ถ้า userId = 2 -> ได้ 2 (slider)
+    // ถ้า userId = 3 -> ได้ 3 (cloudflare)
+    // ถ้า userId = 4 -> ได้ 0 (text)
+    // ถ้าบังเอิญ userId แปลงเป็นเลขไม่ได้ (NaN) ให้ fallback กลับไปสุ่มเผื่อเหนียว
+    const index = isNaN(numericUserId) ? Math.floor(Math.random() * routes.length) : (numericUserId % routes.length);
+    const selectedRoute = routes[index];
 
-    console.log(`🔀 Redirecting to /captcha/${randomRoute}`);
+    console.log(`🔀 Redirecting to /captcha/${selectedRoute}`);
+
+    // 🔥 สำคัญมาก: บันทึกประเภท CAPTCHA ลง SessionStorage ตรงนี้เลย 
+    // เพื่อให้หน้า Survey ดึงไปส่ง Google Sheets ได้อย่างถูกต้อง
+    sessionStorage.setItem('captcha_type', selectedRoute);
 
     // สั่ง Redirect ไปที่หน้า Captcha นั้นๆ พร้อมพก userId และ method ไปด้วย
-    router.replace(`/captcha/${randomRoute}?userId=${userId}&method=${method}`);
+    router.replace(`/captcha/${selectedRoute}?userId=${userId}&method=${method}`);
   }, [router, searchParams]);
 
   return (

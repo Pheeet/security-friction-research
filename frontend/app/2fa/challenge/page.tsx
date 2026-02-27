@@ -1,7 +1,6 @@
-//app/2fa/challenge
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
 function ChallengeContent() {
@@ -9,27 +8,63 @@ function ChallengeContent() {
   const userId = searchParams.get('userId');
   const router = useRouter();
 
-  const [otp, setOtp] = useState('');
+  const [userEmail, setUserEmail] = useState('Loading...');
+  const [otpValues, setOtpValues] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
+  const [countdown, setCountdown] = useState(30);
+
+  // 🔥 1. เพิ่ม State สำหรับสถานะสำเร็จ, Error และการสั่น
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [isShaking, setIsShaking] = useState(false);
+
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const initialRefCode = searchParams.get('refCode');
   const method = searchParams.get('method') || 'email';
   const [currentRefCode, setCurrentRefCode] = useState(initialRefCode);
-  // State สำหรับจับเวลา
   const [startTime, setStartTime] = useState<number>(0);
 
-  // เริ่มจับเวลาทันทีที่หน้าโหลดเสร็จและพร้อมให้กรอก
   useEffect(() => {
+    const fetchUserEmail = async () => {
+      if (!userId) return;
+      try {
+        const res = await fetch(`http://localhost:8080/api/user/${userId}`);
+        const data = await res.json();
+        if (res.ok && data.email) {
+          setUserEmail(data.email);
+        } else {
+          setUserEmail('your email');
+        }
+      } catch (error) {
+        console.error("Error fetching user email:", error);
+        setUserEmail('your email');
+      }
+    };
+
+    fetchUserEmail();
     setStartTime(Date.now());
-  }, []);
+    inputRefs.current[0]?.focus();
+  }, [userId]);
 
-  const handleVerifyOTP = async () => {
-    if (!otp) {
-      alert("Please enter OTP");
-      return;
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (countdown > 0) {
+      timer = setInterval(() => setCountdown(prev => prev - 1), 1000);
     }
+    return () => clearInterval(timer);
+  }, [countdown]);
 
+  const handleVerifyOTP = async (codeToVerify?: string) => {
+    const finalOtp = codeToVerify || otpValues.join('');
+
+    if (finalOtp.length < 6) return;
+
+    // เคลียร์ Error ก่อนเริ่มโหลด
+    setOtpError('');
+    setIsShaking(false);
     setLoading(true);
+
     const timeTakenMs = Date.now() - startTime; 
     try {
       const res = await fetch('http://localhost:8080/api/2fa/verify', {
@@ -38,7 +73,7 @@ function ChallengeContent() {
         credentials: 'include',
         body: JSON.stringify({
           user_id: parseInt(userId || '0', 10),
-          otp: otp,
+          otp: finalOtp, 
           time_taken: timeTakenMs
         }),
       });
@@ -46,24 +81,36 @@ function ChallengeContent() {
       const data = await res.json();
 
       if (data.success) {
-        // คำนวณเวลาที่ใช้ในหน้า 2FA และบันทึกลง sessionStorage
         sessionStorage.setItem('time_2fa', (timeTakenMs / 1000).toString());
+        
+        // 🔥 2. ถ้าสำเร็จ ให้โชว์ติ๊กถูกค้างไว้ 1 วินาที ก่อนเด้งไปหน้า Survey
+        setLoading(false);
+        setIsSuccess(true);
+        setTimeout(() => {
+            router.push('/survey'); 
+        }, 1000);
 
-        alert("OTP Verified!");
-        router.push('/survey'); // go to captcha
       } else {
-        alert("Incorrect OTP: " + (data.message || "Please try again"));
-        setOtp('');
+        // 🔥 3. ถ้าผิดพลาด เอา alert ออก แล้วให้ช่องสั่น + โชว์ Error สีแดงแทน
+        setLoading(false);
+        setOtpError(data.message || "Incorrect OTP. Please try again.");
+        setIsShaking(true);
+        setTimeout(() => setIsShaking(false), 500);
+
+        setOtpValues(['', '', '', '', '', '']); 
+        inputRefs.current[0]?.focus(); 
       }
     } catch (error) {
+      setLoading(false);
       console.error(error);
-      alert("Error verifying OTP: Unable to connect to server");
+      setOtpError("Unable to connect to server");
+      setIsShaking(true);
+      setTimeout(() => setIsShaking(false), 500);
     }
-
-    setLoading(false);
   };
 
   const handleResend = async () => {
+    setOtpError('');
     setLoading(true);
     try {
       const res = await fetch('http://localhost:8080/api/2fa/request', {
@@ -71,117 +118,221 @@ function ChallengeContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: parseInt(userId || '0', 10),
-          method: method // หรือดึงจาก searchParams
+          method: method 
         }),
       });
       const data = await res.json();
       if (data.success) {
         setCurrentRefCode(data.ref_code);
-        alert("รหัสใหม่ถูกส่งไปยังอีเมลของคุณแล้ว (Ref: " + data.ref_code + ")");
+        setOtpValues(['', '', '', '', '', '']);
+        setCountdown(30); 
+        inputRefs.current[0]?.focus();
       }
     } catch (error) {
-      alert("ไม่สามารถส่งรหัสใหม่ได้ กรุณาลองใหม่อีกครั้ง");
+      setOtpError("Error sending new OTP. Please try again.");
     }
     setLoading(false);
   };
-  
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+  const handleChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, ''); 
+    if (!value) return;
+
+    setOtpError(''); // พิมพ์ใหม่ปุ๊บ เอา Error ออก
+
+    const newOtpValues = [...otpValues];
+    newOtpValues[index] = value.slice(-1); 
+    setOtpValues(newOtpValues);
+
+    if (index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+
+    // 🔥 4. ระบบ Auto-submit (พิมพ์ครบ 6 ตัวปุ๊บ วิ่งเช็คให้ทันทีโดยไม่ต้องกดปุ่ม)
+    const currentOtp = newOtpValues.join('');
+    if (currentOtp.length === 6) {
+        handleVerifyOTP(currentOtp);
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      setOtpError('');
+      if (!otpValues[index] && index > 0) {
+        const newOtpValues = [...otpValues];
+        newOtpValues[index - 1] = '';
+        setOtpValues(newOtpValues);
+        inputRefs.current[index - 1]?.focus();
+      } else {
+        const newOtpValues = [...otpValues];
+        newOtpValues[index] = '';
+        setOtpValues(newOtpValues);
+      }
+    } else if (e.key === 'Enter') {
       handleVerifyOTP();
     }
   };
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    setOtpError('');
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    
+    if (pastedData) {
+      const newOtpValues = [...otpValues];
+      for (let i = 0; i < pastedData.length; i++) {
+        newOtpValues[i] = pastedData[i];
+      }
+      setOtpValues(newOtpValues);
+      
+      const focusIndex = Math.min(pastedData.length, 5);
+      inputRefs.current[focusIndex]?.focus();
+
+      // วางรหัส 6 ตัวปุ๊บ วิ่งเช็คให้อัตโนมัติ
+      if (pastedData.length === 6) {
+          handleVerifyOTP(pastedData);
+      }
+    }
+  };
+
+  const greenThemeColor = '#059669'; 
+
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      backgroundColor: '#f3f4f6' 
-    }}>
-      <div style={{ 
-        backgroundColor: '#fff', 
-        padding: '3rem', 
-        borderRadius: '12px', 
-        width: '100%', 
-        maxWidth: '450px', 
-        textAlign: 'center', 
-        boxShadow: '0 4px 20px rgba(0,0,0,0.1)' 
-      }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb' }}>
+      
+      {/* 🔥 5. เพิ่ม Keyframes สำหรับสปินเนอร์และการสั่น */}
+      <style>{`
+        @keyframes spin-circle {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          50% { transform: translateX(5px); }
+          75% { transform: translateX(-5px); }
+        }
+        .animate-shake {
+          animation: shake 0.4s ease-in-out;
+        }
+      `}</style>
+
+      <div style={{ backgroundColor: '#fff', padding: '3.5rem', borderRadius: '12px', width: '100%', maxWidth: '480px', textAlign: 'left', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
         
-        <h1 style={{ 
-          color: '#555', 
-          fontSize: '1.8rem', 
-          fontWeight: 'bold', 
-          marginBottom: '1rem' 
-        }}>
-          Email Verification
+        <h1 style={{ color: '#111827', fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem' }}>
+          Verify OTP
         </h1>
 
-        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✉️</div>
-
-        <p style={{ color: '#999', marginBottom: '1.5rem' }}>
-          We sent a 6-digit code to your email.<br/>
-          Ref: <strong>{currentRefCode}</strong>
+        <p style={{ color: '#4b5563', marginBottom: '1.5rem', fontSize: '1rem', lineHeight: '1.6' }}>
+          We sent an OTP to <strong>{userEmail}</strong><br/>
+          Enter it below to continue.<br/>
+          <span style={{ fontSize: '0.9rem', color: '#9ca3af', marginTop: '4px', display: 'block' }}>Ref: {currentRefCode}</span>
         </p>
 
-        <input 
-          type="text" 
-          placeholder="Enter 6-digit Code"
-          value={otp}
-          onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-          onKeyDown={handleKeyDown} // เพิ่มกด Enter
-          maxLength={6}
-          style={{ 
-            color: '#999',
-            width: '100%', 
-            padding: '12px', 
-            textAlign: 'center', 
-            fontSize: '1.2rem', 
-            letterSpacing: '6px', 
-            marginBottom: '1rem', 
-            border: '1px solid #ddd', 
-            borderRadius: '6px' 
-          }}
-          onFocus={(e) => e.target.style.borderColor = '#2563eb'}
-          onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
-        />
+        {/* 🔥 6. ถ้ามี Error ให้สั่นทั้งกล่องช่องกรอก */}
+        <div className={isShaking ? 'animate-shake' : ''} style={{ marginBottom: otpError ? '0.5rem' : '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-start', gap: '8px' }}>
+            {otpValues.map((digit, index) => (
+              <input
+                key={index}
+                ref={(el) => { inputRefs.current[index] = el; }}
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code" 
+                maxLength={1}
+                value={digit}
+                onChange={(e) => handleChange(index, e)}
+                onKeyDown={(e) => handleKeyDown(index, e)}
+                onPaste={handlePaste}
+                style={{
+                  width: '50px',
+                  height: '60px',
+                  fontSize: '1.5rem',
+                  textAlign: 'center',
+                  fontWeight: '600',
+                  color: otpError ? '#ef4444' : '#111827', // ถ้าผิด ตัวเลขจะแดง
+                  border: `1px solid ${otpError ? '#ef4444' : '#d1d5db'}`, // ถ้าผิด กรอบจะแดง
+                  borderRadius: '8px',
+                  outline: 'none',
+                  transition: 'all 0.2s ease',
+                  backgroundColor: '#ffffff'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = otpError ? '#ef4444' : greenThemeColor;
+                  e.target.style.boxShadow = otpError ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : `0 0 0 3px rgba(5, 150, 105, 0.1)`;
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = otpError ? '#ef4444' : '#d1d5db';
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
+            ))}
+          </div>
+        </div>
 
+        {/* 🔥 7. โชว์ข้อความ Error ด้านล่าง (ถ้ามี) */}
+        {otpError && (
+          <div style={{ color: '#ef4444', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '1.5rem' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style={{width: '16px', height: '16px'}}>
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+            </svg>
+            {otpError}
+          </div>
+        )}
+
+        <div style={{ fontSize: '0.95rem', color: '#4b5563', marginBottom: '2rem' }}>
+          {countdown > 0 ? (
+            <span>
+              Resend available in 00:{countdown.toString().padStart(2, '0')} seconds.{' '}
+              <span style={{ color: '#9ca3af', fontWeight: '500' }}>Resend OTP</span>
+            </span>
+          ) : (
+            <span>
+              Resend available:{' '}
+              <button onClick={handleResend} style={{ background: 'none', border: 'none', color: greenThemeColor, fontWeight: 'bold', cursor: 'pointer', padding: 0, fontSize: '0.95rem' }}>
+                Resend OTP
+              </button>
+            </span>
+          )}
+        </div>
+
+        {/* 🔥 8. ปุ่มที่มีอนิเมชัน Loading และ Success เหมือนหน้า Login */}
         <button 
-          onClick={handleVerifyOTP}
-          disabled={loading}
+          onClick={() => handleVerifyOTP()}
+          disabled={loading || isSuccess || otpValues.join('').length < 6}
           style={{ 
-            width: '100%', 
-            padding: '12px', 
-            backgroundColor: loading ? '#999' : '#059669', 
-            color: 'white', 
-            border: 'none', 
-            borderRadius: '6px', 
-            fontSize: '1rem', 
-            fontWeight: 'bold', 
-            cursor: 'pointer' 
+            width: '100%', padding: '14px', 
+            backgroundColor: (loading || otpValues.join('').length < 6) && !isSuccess ? '#9ca3af' : (isSuccess ? '#10b981' : greenThemeColor), 
+            color: 'white', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', 
+            cursor: loading || isSuccess || otpValues.join('').length < 6 ? 'not-allowed' : 'pointer',
+            transition: 'background-color 3s',
+            marginBottom: '1rem',
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}
         >
-          {loading ? 'Verifying...' : 'Verify Code'}
+          {loading ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '22px', height: '22px', border: '3px solid rgba(255, 255, 255, 0.3)', borderTop: '3px solid #ffffff', borderRadius: '50%', animation: 'spin-circle 1s linear infinite' }} />
+                  <span>Verifying...</span>
+              </div>
+          ) : isSuccess ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>✓</span> Verified Successfully
+              </div>
+          ) : (
+              'Verify'
+          )}
         </button>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
           <button 
-            onClick={handleResend}
-            disabled={loading}
-            style={{ 
-              background: 'none',
-              border: 'none',
-              color: '#2563eb',
-              textDecoration: 'underline',
-              cursor: 'pointer',
-              fontSize: '0.9rem'
-            }}
+            onClick={() => router.push('/login')}
+            style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: '1rem', fontWeight: '500', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', margin: '0 auto' }}
           >
-            Didn't get the code? Resend
+            ← Back to Log In
           </button>
         </div>
+
       </div>
     </div>
   );

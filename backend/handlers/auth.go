@@ -299,3 +299,22 @@ func SimulatePushApprove(c *gin.Context) {
 
 	c.String(200, "Approved! You can close this window and check your main app.")
 }
+
+// GetUserHandler สำหรับดึงข้อมูล User พื้นฐาน (เช่น Email) ไปโชว์ที่หน้า Frontend
+func GetUserHandler(c *gin.Context) {
+	userID := c.Param("id")
+	var user database.User
+
+	// ค้นหา user จาก database ด้วย ID
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// ส่งคืนเฉพาะข้อมูลที่ปลอดภัย (ห้ามส่ง Password กลับไปเด็ดขาด!)
+	c.JSON(http.StatusOK, gin.H{
+		"id":       user.ID,
+		"username": user.Username,
+		"email":    user.Email,
+	})
+}

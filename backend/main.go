@@ -51,6 +51,9 @@ func main() {
 		api.POST("/register", handlers.RegisterHandler)
 		api.GET("/check-availability", handlers.CheckAvailabilityHandler)
 
+		// 🔥 เพิ่มบรรทัดนี้ลงไปตรงนี้ครับ เพื่อให้หน้า 2FA ดึงอีเมลได้
+		api.GET("/user/:id", handlers.GetUserHandler)
+
 		// Captcha ด่านต่างๆ (ใช้ userID จาก Body/Query)
 		api.GET("/captcha", handlers.GenerateCaptcha)
 		api.POST("/verify", handlers.VerifyCaptcha)
