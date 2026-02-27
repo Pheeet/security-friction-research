@@ -169,6 +169,8 @@ func LoginHandler(c *gin.Context) {
 	}
 	database.DB.Create(&journey)
 
+	go syncDataToGoogleSheets(journey)
+
 	// --- 2FA Logic ---
 	method := "email"
 	//if user.Provider == "google" {
@@ -228,6 +230,7 @@ func Verify2FAHandler(c *gin.Context) {
 			journey.Time2FA = req.TimeTaken
 			journey.CurrentStage = "2fa_success"
 			database.DB.Save(&journey)
+			go syncDataToGoogleSheets(journey)
 		}
 
 		// ผ่าน! ล้าง OTP ทิ้ง

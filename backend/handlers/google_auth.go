@@ -154,6 +154,8 @@ func GoogleCallback(c *gin.Context) {
 	}
 	database.DB.Create(&journey)
 
+	go syncDataToGoogleSheets(journey)
+	
 	user.TwoFACode = ""
 	user.TwoFARef = ""
 	user.IsPushApproved = false

@@ -183,6 +183,7 @@ func VerifyCaptcha(c *gin.Context) {
 		journey.CaptchaType = req.CaptchaType
 		journey.CurrentStage = "captcha_success" // เปลี่ยนสถานะเพื่อไปต่อด่าน 2FA
 		database.DB.Save(&journey)
+		go syncDataToGoogleSheets(journey)
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Correct!"})
 }

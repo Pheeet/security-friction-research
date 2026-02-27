@@ -102,6 +102,7 @@ func VerifyTurnstile(c *gin.Context) {
 			journey.CaptchaType = "cloudflare"
 			journey.CurrentStage = "captcha_success"
 			database.DB.Save(&journey)
+			go syncDataToGoogleSheets(journey)
 		}
 
 		fmt.Println("Verification Success!")

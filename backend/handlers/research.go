@@ -84,19 +84,20 @@ func syncDataToGoogleSheets(j database.ResearchJourney) {
 
 	// รวบรวม Data ชุดสมบูรณ์
 	payload := map[string]interface{}{
-		"timestamp":    timeStr,
-		"user_id":      j.UserID,
-		"session_id":   j.SessionID,
-		"login_method": j.LoginMethod,
-		"time_login":   j.TimeLogin,
-		"time_captcha": j.TimeCaptcha,
-		"captcha_type": j.CaptchaType,
-		"time_2fa":     j.Time2FA,
-		"q1":           j.Q1,
-		"q2":           j.Q2,
-		"q3":           j.Q3,
-		"q4":           j.Q4,
-		"q5":           j.Q5,
+		"timestamp":     timeStr,
+		"user_id":       j.UserID,
+		"session_id":    j.SessionID,
+		"login_method":  j.LoginMethod,
+		"time_login":    j.TimeLogin,
+		"time_captcha":  j.TimeCaptcha,
+		"captcha_type":  j.CaptchaType,
+		"time_2fa":      j.Time2FA,
+		"q1":            j.Q1,
+		"q2":            j.Q2,
+		"q3":            j.Q3,
+		"q4":            j.Q4,
+		"q5":            j.Q5,
+		"current_stage": j.CurrentStage,
 	}
 
 	jsonPayload, _ := json.Marshal(payload)
