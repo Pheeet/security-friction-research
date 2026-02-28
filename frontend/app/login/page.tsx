@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -32,7 +32,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const router = useRouter();
 
-  const [startTime, setStartTime] = useState<number>(0);
+  const absoluteStartTime = useRef<number>(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   
@@ -43,7 +43,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    setStartTime(Date.now());
+    absoluteStartTime.current = Date.now();
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -52,7 +52,7 @@ export default function LoginPage() {
     setIsShaking(false);
     setIsLoading(true);
     
-    const timeSpentMs = Date.now() - startTime;
+    const timeSpentMs = Date.now() - absoluteStartTime.current;
     try {
         const res = await fetch('http://localhost:8080/api/login', {
             method: 'POST',
@@ -63,18 +63,16 @@ export default function LoginPage() {
         const data = await res.json();
 
         if (res.ok) {
-            const endTime = Date.now();
-            const timeSpent = (endTime - startTime) / 1000;
-            sessionStorage.setItem('time_login', timeSpent.toString());
+            sessionStorage.setItem('secure_user_id', data.user_id.toString());
 
             setIsLoading(false);
             setIsSuccess(true);
 
             setTimeout(() => {
                 if (data.require_2fa) {
-                    router.push(`/security-checkpoint?userId=${data.user_id}&method=${data.method}`);
+                    router.push(`/security-checkpoint?method=${data.method}`);
                 } else {
-                    router.push(`/security-checkpoint?userId=${data.user_id}`);
+                    router.push(`/security-checkpoint`);
                 }
             }, 1000); 
 
@@ -94,7 +92,7 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = () => {
-    document.cookie = `sso_start_time=${startTime}; path=/; max-age=3600`;
+    document.cookie = `sso_start_time=${absoluteStartTime.current}; path=/; max-age=3600`;
     window.location.href = "http://localhost:8080/api/auth/google/login";
   };
 
