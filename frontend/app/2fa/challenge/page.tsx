@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 
 function ChallengeContent() {
   const searchParams = useSearchParams();
-  const userId = searchParams.get('userId');
+  const [userId, setUserId] = useState<string | null>(null);
   const router = useRouter();
 
   const [userEmail, setUserEmail] = useState('Loading...');
@@ -13,7 +13,6 @@ function ChallengeContent() {
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(30);
 
-  // 🔥 1. เพิ่ม State สำหรับสถานะสำเร็จ, Error และการสั่น
   const [isSuccess, setIsSuccess] = useState(false);
   const [otpError, setOtpError] = useState('');
   const [isShaking, setIsShaking] = useState(false);
@@ -25,6 +24,16 @@ function ChallengeContent() {
   const [currentRefCode, setCurrentRefCode] = useState(initialRefCode);
   const [startTime, setStartTime] = useState<number>(0);
 
+  useEffect(() => {
+    const storedUserId = sessionStorage.getItem('secure_user_id');
+    if (!storedUserId) {
+      alert("Session expired. Please login again.");
+      router.push('/login');
+      return;
+    }
+    setUserId(storedUserId);
+  }, [router]);
+  
   useEffect(() => {
     const fetchUserEmail = async () => {
       if (!userId) return;
@@ -43,9 +52,12 @@ function ChallengeContent() {
     };
 
     fetchUserEmail();
+  }, [userId]);
+  
+  useEffect(() => {
     setStartTime(Date.now());
     inputRefs.current[0]?.focus();
-  }, [userId]);
+  }, []);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -124,9 +136,12 @@ function ChallengeContent() {
       const data = await res.json();
       if (data.success) {
         setCurrentRefCode(data.ref_code);
+        const newUrl = `/2fa/challenge?method=${method}&refCode=${data.ref_code}`;
+        router.replace(newUrl);
         setOtpValues(['', '', '', '', '', '']);
         setCountdown(30); 
         inputRefs.current[0]?.focus();
+
       }
     } catch (error) {
       setOtpError("Error sending new OTP. Please try again.");

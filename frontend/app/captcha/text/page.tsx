@@ -1,15 +1,25 @@
 //app/captcha/text
 'use client';
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import CaptchaTest from "@/app/components/CaptchaTest";
 
 function TextContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const userId = searchParams.get('userId');
+  const [userId, setUserId] = useState<string | null>(null);
   const method = searchParams.get('method') || 'email';
+
+  useEffect(() => {
+    const storedUserId = sessionStorage.getItem('secure_user_id');
+    if (!storedUserId) {
+      alert("Session expired. Please login again.");
+      router.push('/login');
+      return;
+    }
+    setUserId(storedUserId);
+  }, [router]);
 
   const handleSuccess = async () => {
     try {
@@ -25,7 +35,7 @@ function TextContent() {
       const data = await res.json();
 
       if (data.success) {
-        router.push(`/2fa/challenge?userId=${userId}&method=${method}&refCode=${data.ref_code}`);
+        router.replace(`/2fa/challenge?method=${method}&refCode=${data.ref_code}`);
       } else {
         alert("Failed to request 2FA: " + data.message);
       }
@@ -35,8 +45,15 @@ function TextContent() {
     }
   };
 
+  if (!userId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-pulse text-gray-500 font-medium">Loading Text Challenge...</div>
+      </div>
+    );
+  }
+
   return (
-    // 🟢 จุดสังเกต: ส่ง type="text" และเปลี่ยน Title ให้เข้ากับโจทย์
     <CaptchaTest 
       userId={userId || ""}
       type="text" 

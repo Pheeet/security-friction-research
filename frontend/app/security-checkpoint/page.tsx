@@ -18,7 +18,7 @@ function CheckpointRedirector() {
     // แปลง userId เป็นตัวเลข (ฐาน 10)
     const numericUserId = parseInt(userId || '0', 10);
     
-    // 🔥 ใช้การหารเอาเศษ (Modulo) 
+    // ใช้การหารเอาเศษ (Modulo) 
     // ถ้า userId = 1 -> ได้ 1 (math)
     // ถ้า userId = 2 -> ได้ 2 (slider)
     // ถ้า userId = 3 -> ได้ 3 (cloudflare)
@@ -32,9 +32,9 @@ function CheckpointRedirector() {
     // 🔥 สำคัญมาก: บันทึกประเภท CAPTCHA ลง SessionStorage ตรงนี้เลย 
     // เพื่อให้หน้า Survey ดึงไปส่ง Google Sheets ได้อย่างถูกต้อง
     sessionStorage.setItem('captcha_type', selectedRoute);
-
+    sessionStorage.setItem('secure_user_id', numericUserId.toString());
     // สั่ง Redirect ไปที่หน้า Captcha นั้นๆ พร้อมพก userId และ method ไปด้วย
-    router.replace(`/captcha/${selectedRoute}?userId=${userId}&method=${method}`);
+    router.replace(`/captcha/${selectedRoute}?method=${method}`);
   }, [router, searchParams]);
 
   return (

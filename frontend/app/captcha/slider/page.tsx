@@ -1,15 +1,26 @@
 //app/captcha/slider
 'use client';
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import SliderCaptcha from "@/app/components/SliderCaptcha";
 
 function SliderContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const userId = searchParams.get('userId');
+  const [userId, setUserId] = useState<string | null>(null);
   const method = searchParams.get('method') || 'email';
+
+  useEffect(() => {
+    const storedUserId = sessionStorage.getItem('secure_user_id');
+    if (!storedUserId) {
+      alert("Session expired. Please login again.");
+      router.push('/login');
+      return;
+    }
+    setUserId(storedUserId);
+  }, [router]);
+
 
   const handleSuccess = async () => {
     try {
@@ -25,7 +36,7 @@ function SliderContent() {
       const data = await res.json();
 
       if (data.success) {
-        router.push(`/2fa/challenge?userId=${userId}&method=${method}&refCode=${data.ref_code}`);
+        router.replace(`/2fa/challenge?method=${method}&refCode=${data.ref_code}`);
       } else {
         alert("Failed to request 2FA: " + data.message);
       }
@@ -35,12 +46,21 @@ function SliderContent() {
     }
   };
 
+  if (!userId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="animate-pulse text-gray-500 font-medium">Loading Slider Challenge...</div>
+      </div>
+    );
+  }
+  
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <SliderCaptcha userId={userId || ""} onSuccess={handleSuccess} />
     </div>
   );
 }
+
 
 export default function SliderPage() {
   return (

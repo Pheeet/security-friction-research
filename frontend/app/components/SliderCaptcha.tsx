@@ -12,14 +12,14 @@ interface Props {
 }
 
 
-export default function SliderCaptcha({ userId,onSuccess }: Props) {
+export default function SliderCaptcha({ userId, onSuccess }: Props) {
   const [bgImage, setBgImage] = useState<string>("");
   const [pieceImage, setPieceImage] = useState<string>("");
   const [pieceY, setPieceY] = useState<number>(0);
   const [sliderValue, setSliderValue] = useState<number>(0); 
   const [status, setStatus] = useState<string | null>(null);
   
-  // 🔥 1. เปลี่ยนเป็นจับเวลาแบบ Absolute (เวลาเริ่มตั้งแต่เห็นหน้าเว็บครั้งแรก)
+  
   const [absoluteStartTime, setAbsoluteStartTime] = useState<number>(0); 
   
   const [isLoading, setIsLoading] = useState(true);
@@ -29,7 +29,7 @@ export default function SliderCaptcha({ userId,onSuccess }: Props) {
 
   const router = useRouter();
 
-  // 🔥 2. เริ่มจับเวลา "ครั้งแรกและครั้งเดียว" ทันทีที่โหลด Component ขึ้นมา
+  
   useEffect(() => {
     setAbsoluteStartTime(Date.now());
     fetchCaptcha();
@@ -49,8 +49,7 @@ export default function SliderCaptcha({ userId,onSuccess }: Props) {
       if (res.data.width) setCaptchaWidth(res.data.width);
       if (res.data.height) setCaptchaHeight(res.data.height);
       
-      // 🔥 3. เอาการเซ็ตเวลาออกจากตรงนี้ เพื่อไม่ให้เวลามันรีเซ็ตตอนลากพลาดแล้วโหลดโจทย์ใหม่
-
+      
     } catch (error) {
       console.error("Error loading captcha:", error);
       setStatus("Error loading captcha");
@@ -62,7 +61,6 @@ export default function SliderCaptcha({ userId,onSuccess }: Props) {
   const handleVerify = async () => {
     if (isLoading) return;
 
-    // 🔥 4. คำนวณเวลารวมตั้งแต่โหลดหน้าเว็บ จนกระทั่งลาก Slider ปล่อยมือ
     const durationTotal = Date.now() - absoluteStartTime;
 
     try {
@@ -77,6 +75,7 @@ export default function SliderCaptcha({ userId,onSuccess }: Props) {
       );
 
       if (res.data.success) {
+        
         setStatus("Correct! 🎉");
         
         setTimeout(() => {
