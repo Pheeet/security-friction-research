@@ -98,7 +98,7 @@ export default function SurveyPage() {
     setIsSubmitting(true);
 
     try {
-      // 🔥 1. รวบรวมข้อมูลเวลาจากหน้าต่างๆ ที่เก็บไว้ใน sessionStorage
+      // 1. ส่งคำตอบไปให้ Backend (ส่วนข้อมูลเวลา Backend จะไปดึงจาก DB เอง)
       const res = await fetch('http://localhost:8080/api/research/survey', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

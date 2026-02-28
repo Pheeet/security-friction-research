@@ -20,7 +20,7 @@ export default function SliderCaptcha({ userId, onSuccess }: Props) {
   const [status, setStatus] = useState<string | null>(null);
   
   
-  const [absoluteStartTime, setAbsoluteStartTime] = useState<number>(0); 
+  const absoluteStartTime = useRef<number>(0);
   
   const [isLoading, setIsLoading] = useState(true);
   const [captchaWidth, setCaptchaWidth] = useState<number>(300); 
@@ -31,7 +31,7 @@ export default function SliderCaptcha({ userId, onSuccess }: Props) {
 
   
   useEffect(() => {
-    setAbsoluteStartTime(Date.now());
+    absoluteStartTime.current = Date.now();
     fetchCaptcha();
   }, []);
 
@@ -61,7 +61,7 @@ export default function SliderCaptcha({ userId, onSuccess }: Props) {
   const handleVerify = async () => {
     if (isLoading) return;
 
-    const durationTotal = Date.now() - absoluteStartTime;
+    const durationTotal = Date.now() - absoluteStartTime.current;
 
     try {
       const res = await axios.post(

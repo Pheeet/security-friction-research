@@ -63,9 +63,6 @@ export default function TurnstileCaptcha({ userId, onVerify }: Props) {
             );
 
             if (res.data.success) {
-              const timeSpentSeconds = timeTaken / 1000;
-              sessionStorage.setItem('time_captcha', timeSpentSeconds.toString());
-              sessionStorage.setItem('captcha_type', 'turnstile');
               setStatus("Correct!");
 
               isVerifying.current = false;

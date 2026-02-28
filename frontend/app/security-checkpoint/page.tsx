@@ -28,10 +28,6 @@ function CheckpointRedirector() {
     const selectedRoute = routes[index];
 
     console.log(`🔀 Redirecting to /captcha/${selectedRoute}`);
-
-    // 🔥 สำคัญมาก: บันทึกประเภท CAPTCHA ลง SessionStorage ตรงนี้เลย 
-    // เพื่อให้หน้า Survey ดึงไปส่ง Google Sheets ได้อย่างถูกต้อง
-    sessionStorage.setItem('captcha_type', selectedRoute);
     sessionStorage.setItem('secure_user_id', numericUserId.toString());
     // สั่ง Redirect ไปที่หน้า Captcha นั้นๆ พร้อมพก userId และ method ไปด้วย
     router.replace(`/captcha/${selectedRoute}?method=${method}`);

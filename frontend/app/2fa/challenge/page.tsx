@@ -93,9 +93,8 @@ function ChallengeContent() {
       const data = await res.json();
 
       if (data.success) {
-        sessionStorage.setItem('time_2fa', (timeTakenMs / 1000).toString());
         
-        // 🔥 2. ถ้าสำเร็จ ให้โชว์ติ๊กถูกค้างไว้ 1 วินาที ก่อนเด้งไปหน้า Survey
+        
         setLoading(false);
         setIsSuccess(true);
         setTimeout(() => {
@@ -103,7 +102,7 @@ function ChallengeContent() {
         }, 1000);
 
       } else {
-        // 🔥 3. ถ้าผิดพลาด เอา alert ออก แล้วให้ช่องสั่น + โชว์ Error สีแดงแทน
+       
         setLoading(false);
         setOtpError(data.message || "Incorrect OTP. Please try again.");
         setIsShaking(true);
@@ -163,7 +162,7 @@ function ChallengeContent() {
       inputRefs.current[index + 1]?.focus();
     }
 
-    // 🔥 4. ระบบ Auto-submit (พิมพ์ครบ 6 ตัวปุ๊บ วิ่งเช็คให้ทันทีโดยไม่ต้องกดปุ่ม)
+  
     const currentOtp = newOtpValues.join('');
     if (currentOtp.length === 6) {
         handleVerifyOTP(currentOtp);
@@ -215,7 +214,7 @@ function ChallengeContent() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb' }}>
       
-      {/* 🔥 5. เพิ่ม Keyframes สำหรับสปินเนอร์และการสั่น */}
+      
       <style>{`
         @keyframes spin-circle {
           0% { transform: rotate(0deg); }
@@ -244,7 +243,7 @@ function ChallengeContent() {
           <span style={{ fontSize: '0.9rem', color: '#9ca3af', marginTop: '4px', display: 'block' }}>Ref: {currentRefCode}</span>
         </p>
 
-        {/* 🔥 6. ถ้ามี Error ให้สั่นทั้งกล่องช่องกรอก */}
+        
         <div className={isShaking ? 'animate-shake' : ''} style={{ marginBottom: otpError ? '0.5rem' : '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'flex-start', gap: '8px' }}>
             {otpValues.map((digit, index) => (
@@ -285,7 +284,7 @@ function ChallengeContent() {
           </div>
         </div>
 
-        {/* 🔥 7. โชว์ข้อความ Error ด้านล่าง (ถ้ามี) */}
+       
         {otpError && (
           <div style={{ color: '#ef4444', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '1.5rem' }}>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style={{width: '16px', height: '16px'}}>
@@ -311,7 +310,7 @@ function ChallengeContent() {
           )}
         </div>
 
-        {/* 🔥 8. ปุ่มที่มีอนิเมชัน Loading และ Success เหมือนหน้า Login */}
+        
         <button 
           onClick={() => handleVerifyOTP()}
           disabled={loading || isSuccess || otpValues.join('').length < 6}

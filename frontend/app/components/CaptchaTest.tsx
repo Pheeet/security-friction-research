@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 
@@ -23,7 +23,7 @@ export default function CaptchaTest({ userId, type, title, onSuccess }: Props) {
   const [status, setStatus] = useState<{ success: boolean; message: string } | null>(null);
   
   // 🔥 1. เปลี่ยนชื่อตัวแปรให้ชัดเจนว่าเป็นเวลา "เริ่มต้นจริงๆ"
-  const [absoluteStartTime, setAbsoluteStartTime] = useState<number>(0);
+  const absoluteStartTime = useRef<number>(0);;
 
   const [isError, setIsError] = useState(false);
 
@@ -50,7 +50,7 @@ export default function CaptchaTest({ userId, type, title, onSuccess }: Props) {
     if (!input) return;
     
     // 🔥 3. คำนวณเวลารวมตั้งแต่โหลดหน้าจนกด Submit
-    const durationTotal = Date.now() - absoluteStartTime;
+   const durationTotal = Date.now() - absoluteStartTime.current;
 
     try {
       const res = await axios.post("http://localhost:8080/api/verify", {
@@ -67,9 +67,6 @@ export default function CaptchaTest({ userId, type, title, onSuccess }: Props) {
       });
 
       if (res.data.success) {
-        const timeSpentSeconds = durationTotal / 1000;
-        sessionStorage.setItem('time_captcha', timeSpentSeconds.toString());
-        sessionStorage.setItem('captcha_type', type); // บันทึกประเภทไว้ด้วย จะได้แยกถูกว่า Math หรือ Text
         
         console.log("👉 กำลังจะย้ายไปหน้า Survey แล้วนะ!");
         setTimeout(() => {
@@ -99,7 +96,7 @@ export default function CaptchaTest({ userId, type, title, onSuccess }: Props) {
 
   useEffect(() => {
     // 🔥 6. เริ่มจับเวลา "ครั้งแรกและครั้งเดียว" ทันทีที่โหลด Component นี้ขึ้นมา
-    setAbsoluteStartTime(Date.now());
+    absoluteStartTime.current = Date.now();
     fetchCaptcha();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
