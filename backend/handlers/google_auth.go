@@ -110,8 +110,9 @@ func GoogleCallback(c *gin.Context) {
 		c.SetCookie("sso_start_time", "", -1, "/", "localhost", false, true)
 	}
 	experimentMode := "static"
-	if modeCookie, err := c.Cookie("experiment_mode"); err == nil && modeCookie != "" {
-		experimentMode = modeCookie
+	modeCookie, err := c.Cookie("experiment_mode")
+	if err == nil && modeCookie == "adaptive" {
+		experimentMode = "adaptive"
 	}
 
 	riskLevel := "static"

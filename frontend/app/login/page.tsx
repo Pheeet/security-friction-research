@@ -51,8 +51,15 @@ export default function LoginPage() {
 
   useEffect(() => {
     absoluteStartTime.current = Date.now();
-    const mode = sessionStorage.getItem('experiment_mode') || 'static';
-    setExperimentMode(mode);
+    const mode = sessionStorage.getItem('experiment_mode');
+    if (mode !== 'adaptive') {
+      sessionStorage.setItem('experiment_mode', 'static');
+      setExperimentMode('static');
+      // ลบคุกกี้เก่าที่อาจค้างมาจากรอบก่อน
+      document.cookie = "experiment_mode=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    } else {
+      setExperimentMode('adaptive');
+    }
 
     const handleHumanInteraction = () => {
       setMouseMoved(true);
