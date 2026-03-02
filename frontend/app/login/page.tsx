@@ -42,9 +42,49 @@ export default function LoginPage() {
   const [focusedField, setFocusedField] = useState<'username' | 'password' | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
+  const [firstKeystrokeTime, setFirstKeystrokeTime] = useState<number | null>(null);
+  const [hasPasted, setHasPasted] = useState(false);
+  const [experimentMode, setExperimentMode] = useState('static');
+
+  const [mouseMoved, setMouseMoved] = useState(false);
+  const [backspaceCount, setBackspaceCount] = useState(0);
+
   useEffect(() => {
     absoluteStartTime.current = Date.now();
+    const mode = sessionStorage.getItem('experiment_mode') || 'static';
+    setExperimentMode(mode);
+
+    const handleHumanInteraction = () => {
+      setMouseMoved(true);
+      // พอรู้ว่าเป็นคนแล้ว ก็ถอดเซ็นเซอร์ออกได้เลย
+      window.removeEventListener('mousemove', handleHumanInteraction);
+      window.removeEventListener('touchstart', handleHumanInteraction);
+    };
+
+    window.addEventListener('mousemove', handleHumanInteraction);
+    window.addEventListener('touchstart', handleHumanInteraction);
+
+    return () => {
+      window.removeEventListener('mousemove', handleHumanInteraction);
+      window.removeEventListener('touchstart', handleHumanInteraction);
+    };
+
   }, []);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // จับเวลาเริ่มพิมพ์
+    if (!firstKeystrokeTime) {
+      setFirstKeystrokeTime(Date.now());
+    }
+    // นับจำนวนการกดปุ่มลบ (Backspace)
+    if (e.key === 'Backspace') {
+      setBackspaceCount(prev => prev + 1);
+    }
+  };
+
+  const handlePaste = () => {
+    setHasPasted(true);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,11 +93,23 @@ export default function LoginPage() {
     setIsLoading(true);
     
     const timeSpentMs = Date.now() - absoluteStartTime.current;
+
+    const typingTimeMs = firstKeystrokeTime ? Date.now() - firstKeystrokeTime : 0;
     try {
         const res = await fetch('http://localhost:8080/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password , time_login: timeSpentMs}),
+            body: JSON.stringify({ 
+              username, 
+              password, 
+              time_login: timeSpentMs,
+              
+              typing_time: typingTimeMs, 
+              has_pasted: hasPasted,     
+              experiment_mode: experimentMode,
+              mouse_moved: mouseMoved,
+              backspace_count: backspaceCount
+            }),
         });
         
         const data = await res.json();
@@ -92,6 +144,7 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = () => {
+    document.cookie = `experiment_mode=${experimentMode}; path=/; max-age=3600`;
     document.cookie = `sso_start_time=${absoluteStartTime.current}; path=/; max-age=3600`;
     window.location.href = "http://localhost:8080/api/auth/google/login";
   };
@@ -166,6 +219,8 @@ export default function LoginPage() {
               value={username} 
               onFocus={() => setFocusedField('username')}
               onBlur={() => setFocusedField(null)}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               onChange={(e) => {
                   setUsername(e.target.value);
                   setLoginError('');
@@ -183,6 +238,8 @@ export default function LoginPage() {
               value={password} 
               onFocus={() => setFocusedField('password')}
               onBlur={() => setFocusedField(null)}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               onChange={(e) => {
                   setPassword(e.target.value);
                   setLoginError(''); 
