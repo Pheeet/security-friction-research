@@ -117,12 +117,16 @@ export default function LoginPage() {
         if (res.ok) {
             sessionStorage.setItem('secure_user_id', data.user_id.toString());
 
+            sessionStorage.setItem('require_2fa', data.require_2fa.toString());
+            sessionStorage.setItem('captcha_type', data.captcha_type || ''); 
+            sessionStorage.setItem('2fa_method', data.method || 'email');
+
             setIsLoading(false);
             setIsSuccess(true);
 
             setTimeout(() => {
-                if (data.require_2fa) {
-                    router.push(`/security-checkpoint?method=${data.method}`);
+                if (data.captcha_type === 'none' && data.require_2fa === false) {
+                    router.push('/survey');
                 } else {
                     router.push(`/security-checkpoint`);
                 }

@@ -23,6 +23,17 @@ function MathContent() {
   }, [router]);
   // ฟังก์ชันนี้จะส่งลงไปให้ Component เรียกใช้ตอนทำ Captcha ถูกต้อง
   const handleSuccess = async () => {
+    if (!userId) return;
+
+    const require2FA = sessionStorage.getItem('require_2fa');
+
+    if (require2FA === 'false') {
+      console.log('Adaptive Mode: Skipping 2FA -> Go to Survey');
+      router.replace('/survey');
+      return;
+    }
+
+    
     try {
       const res = await fetch('http://localhost:8080/api/2fa/request', {
         method: 'POST',

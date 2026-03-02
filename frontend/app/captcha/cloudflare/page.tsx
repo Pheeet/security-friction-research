@@ -22,6 +22,16 @@ function CloudflareContent() {
   }, [router]);
   
   const handleSuccess = async () => {
+    if (!userId) return;
+
+    const require2FA = sessionStorage.getItem('require_2fa');
+
+    if (require2FA === 'false') {
+      console.log('Adaptive Mode: Skipping 2FA -> Go to Survey');
+      router.replace('/survey');
+      return; 
+    }
+
     try {
       const res = await fetch('http://localhost:8080/api/2fa/request', {
         method: 'POST',
@@ -35,7 +45,7 @@ function CloudflareContent() {
       const data = await res.json();
 
       if (data.success) {
-        router.push(`/2fa/challenge?method=${method}&refCode=${data.ref_code}`);
+        router.replace(`/2fa/challenge?method=${method}&refCode=${data.ref_code}`);
       } else {
         alert("Failed to request 2FA: " + data.message);
       }
