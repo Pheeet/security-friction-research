@@ -18,6 +18,7 @@ import (
 	"backend-api/database"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -95,41 +96,6 @@ func GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	// // -----------------------------
-	// // ✅ ถ้ามี user แล้ว → ส่ง Email OTP
-	// // -----------------------------
-
-	// // สร้าง OTP 6 หลัก
-	// otp := fmt.Sprintf("%06d", rand.Intn(1000000))
-
-	// // สร้าง refCode 4 หลัก
-	// refCode := fmt.Sprintf("%04d", rand.Intn(10000))
-
-	// user.TwoFACode = otp
-	// user.TwoFARef = refCode
-	// user.TwoFAExpiry = time.Now().Add(5 * time.Minute)
-
-	// database.DB.Save(&user)
-
-	// fmt.Printf("Sending Email OTP to %s\n", user.Email)
-
-	// // ส่งเมลแบบ goroutine
-	// go func(targetEmail, targetOTP, targetRef string) {
-	// 	err := sendEmailOTP(targetEmail, targetOTP, targetRef)
-	// 	if err != nil {
-	// 		fmt.Printf("Error sending email: %v\n", err)
-	// 	} else {
-	// 		fmt.Printf("Email sent successfully to %s\n", targetEmail)
-	// 	}
-	// }(user.Email, otp, refCode)
-
-	// // Redirect ไปหน้า 2FA challenge แบบ email
-	// twoFAURL := fmt.Sprintf(
-	// 	"http://localhost:3000/2fa/challenge?userId=%d&method=email&refCode=%s",
-	// 	user.ID,
-	// 	refCode,
-	// )
-
 	// c.Redirect(http.StatusTemporaryRedirect, twoFAURL)
 	var timeLogin int64 = 0
 	cookieStr, err := c.Cookie("sso_start_time")
@@ -143,19 +109,47 @@ func GoogleCallback(c *gin.Context) {
 		// สั่งลบ Cookie ทิ้งเพื่อความสะอาด
 		c.SetCookie("sso_start_time", "", -1, "/", "localhost", false, true)
 	}
+	experimentMode := "static"
+	if modeCookie, err := c.Cookie("experiment_mode"); err == nil && modeCookie != "" {
+		experimentMode = modeCookie
+	}
+
+	riskLevel := "static"
+	captchaType := ""
+	require2FA := "true"
+
+	if experimentMode == "adaptive" {
+		riskLevel = "low"
+		captchaType = "none"
+		require2FA = "false"
+
+		secret := os.Getenv("JWT_SECRET")
+		if secret == "" {
+			secret = "fallback-secret-for-dev"
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"user_id": user.ID,
+			"exp":     time.Now().Add(time.Hour * 24).Unix(),
+		})
+		if tokenString, err := token.SignedString([]byte(secret)); err == nil {
+			c.SetCookie("auth_token", tokenString, 3600*24, "/", "localhost", false, true)
+		}
+	}
 
 	sessionID := uuid.New().String()
 	journey := database.ResearchJourney{
-		UserID:       user.ID,
-		SessionID:    sessionID,
-		LoginMethod:  "sso",
-		TimeLogin:    timeLogin,
-		CurrentStage: "login_success",
+		UserID:         user.ID,
+		SessionID:      sessionID,
+		LoginMethod:    "sso",
+		TimeLogin:      timeLogin,
+		CurrentStage:   "login_success",
+		ExperimentMode: experimentMode,
+		RiskLevel:      riskLevel,
 	}
 	database.DB.Create(&journey)
 
 	go syncDataToGoogleSheets(journey)
-	
+
 	user.TwoFACode = ""
 	user.TwoFARef = ""
 	user.IsPushApproved = false
@@ -163,8 +157,8 @@ func GoogleCallback(c *gin.Context) {
 	database.DB.Save(&user)
 
 	checkpointURL := fmt.Sprintf(
-		"http://localhost:3000/security-checkpoint?userId=%d&method=email",
-		user.ID,
+		"http://localhost:3000/security-checkpoint?userId=%d&method=email&mode=%s&risk=%s&captcha=%s&req2fa=%s",
+		user.ID, experimentMode, riskLevel, captchaType, require2FA,
 	)
 
 	c.Redirect(http.StatusTemporaryRedirect, checkpointURL)

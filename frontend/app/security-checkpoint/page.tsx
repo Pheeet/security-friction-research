@@ -24,9 +24,21 @@ function CheckpointRedirector() {
       numericUserId = parseInt(sessionUserId || '0', 10);
     }
 
+    const urlCaptcha = searchParams.get('captcha');
+    const urlReq2FA = searchParams.get('req2fa');
+
+    if (urlCaptcha) sessionStorage.setItem('captcha_type', urlCaptcha);
+    if (urlReq2FA) sessionStorage.setItem('require_2fa', urlReq2FA);
+
     const experimentMode = sessionStorage.getItem('experiment_mode') || 'static';
     const assignedCaptcha = sessionStorage.getItem('captcha_type');
+    const require2FA = sessionStorage.getItem('require_2fa');
 
+    if (experimentMode === 'adaptive' && assignedCaptcha === 'none' && require2FA === 'false') {
+      console.log('SSO VIP Bypass -> Go straight to Survey!');
+      router.replace('/survey');
+      return; // จบการทำงานฟังก์ชันนี้ทันที ไม่ต้องสับรางไปด่านอื่น
+    }
 
     let selectedRoute = '';
     // ใช้ Round-Robin แทน Random
@@ -49,7 +61,7 @@ function CheckpointRedirector() {
       selectedRoute = routes[index];
       console.log(`Static Mode: Round-Robin assigned -> ${selectedRoute}`);
     }
-    
+
     sessionStorage.setItem('secure_user_id', numericUserId.toString());
     // สั่ง Redirect ไปที่หน้า Captcha นั้นๆ พร้อมพก userId และ method ไปด้วย
     router.replace(`/captcha/${selectedRoute}?method=${method}`);
