@@ -4,6 +4,7 @@ package handlers
 import (
 	"backend-api/database"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -74,6 +75,12 @@ type LoginRequest struct {
 	Username  string `json:"username"`
 	Password  string `json:"password"`
 	TimeLogin int64  `json:"time_login"`
+	//adaptive
+	TypingTime     int    `json:"typing_time"`
+	HasPasted      bool   `json:"has_pasted"`
+	ExperimentMode string `json:"experiment_mode"`
+	MouseMoved     bool   `json:"mouse_moved"`
+	BackspaceCount int    `json:"backspace_count"`
 }
 
 // 2. สำหรับ Register (ต้องรับข้อมูลเยอะกว่า)
@@ -90,6 +97,9 @@ type TwoFAResponse struct {
 	UserID     uint   `json:"user_id"`
 	Method     string `json:"method"` // email, push
 	SessionID  string `json:"session_id"`
+	ExperimentMode string `json:"experiment_mode"`
+	RiskLevel      string `json:"risk_level"`
+	CaptchaType    string `json:"captcha_type"`
 }
 
 // RegisterHandler
@@ -157,6 +167,26 @@ func LoginHandler(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"})
 		return
 	}
+	
+	experimentMode := creds.ExperimentMode
+	if experimentMode == "" {
+		experimentMode = "static" // กันเหนียวเผื่อ Frontend ลืมส่งมา
+	}
+
+	riskLevel := "static"
+	captchaType := ""  // ถ้าเป็น static จะปล่อยว่างไว้ให้ Frontend ไปสุ่มเอง
+	require2FA := true
+	
+	if experimentMode == "adaptive" {
+		riskLevel, captchaType = CalculateRiskScore(creds)
+
+		
+		if riskLevel == "high" {
+			require2FA = true  
+		} else {
+			require2FA = false 
+		}
+	}
 
 	// [RESEARCH LOGIC] สร้าง SessionID และเริ่มบันทึก Journey
 	sessionID := uuid.New().String()
@@ -166,6 +196,8 @@ func LoginHandler(c *gin.Context) {
 		LoginMethod:  "local",
 		TimeLogin:    creds.TimeLogin, // บันทึกเวลาที่ใช้ในหน้า Login
 		CurrentStage: "login_success",
+		ExperimentMode: experimentMode,
+		RiskLevel:      riskLevel,
 	}
 	database.DB.Create(&journey)
 
@@ -184,10 +216,13 @@ func LoginHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, TwoFAResponse{
 		Message:    "Please complete security check",
-		Require2FA: true,
+		Require2FA: require2FA,
 		UserID:     user.ID,
 		Method:     method,
 		SessionID:  sessionID,
+		ExperimentMode: experimentMode,
+		RiskLevel:      riskLevel,
+		CaptchaType:    captchaType,
 		// ไม่ต้องส่ง RefCode กลับไปตอนนี้ก็ได้ เพราะเดี๋ยว RequestOTPHandler จะสร้างให้ใหม่
 	})
 }
@@ -317,4 +352,45 @@ func GetUserHandler(c *gin.Context) {
 		"username": user.Username,
 		"email":    user.Email,
 	})
+}
+
+func CalculateRiskScore(req LoginRequest) (string, string) {
+	score := 0
+
+	// เมาส์ไม่ขยับเลย หรือไม่ทัชจอเลย (บอทชัวร์ 99%)
+	if !req.MouseMoved {
+		score += 50
+	}
+
+	// วางรหัสผ่าน (อาจจะใช้ Password Manager หรือสคริปต์ก๊อปวาง)
+	if req.HasPasted {
+		score += 20
+	}
+
+	// พิมพ์เสร็จเร็วผิดมนุษย์ (น้อยกว่า 0.5 วินาที)
+	if req.TypingTime > 0 && req.TypingTime < 500 {
+		score += 30
+	}
+
+	// ลบแก้รหัสผ่านบ่อย (เดารหัส หรือสับสน)
+	if req.BackspaceCount > 3 {
+		score += 20
+	}
+
+	// ประเมินระดับความเสี่ยงจากคะแนนรวม
+	if score >= 50 {
+		// เสี่ยงสูง (High Risk): โดนด่านยาก Math หรือ Text
+		challenges := []string{"math", "text"}
+		selectedChallenge := challenges[rand.Intn(len(challenges))]
+		return "high", selectedChallenge
+
+	} else if score >= 20 {
+		// เสี่ยงกลาง (Medium Risk): โดนด่านง่าย Slider หรือ Cloudflare
+		challenges := []string{"slider", "cloudflare"}
+		selectedChallenge := challenges[rand.Intn(len(challenges))]
+		return "medium", selectedChallenge
+	}
+
+	// เสี่ยงต่ำ (Low Risk): พฤติกรรมมนุษย์ปกติ ให้ผ่านฉลุย
+	return "low", "none"
 }

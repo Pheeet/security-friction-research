@@ -39,8 +39,9 @@ type ResearchJourney struct {
 	Time2FA      int64  `json:"time_2fa"`
 	
 	// --- สถานะเพื่อดูว่าคน "ถอดใจ" ที่ด่านไหน (Drop-off tracking) ---
-	// เช่น "login_success", "captcha_success", "2fa_success", "survey_completed"
 	CurrentStage string `json:"current_stage"` 
+	ExperimentMode string `json:"experiment_mode"`
+	RiskLevel      string `json:"risk_level"`
 	
 	// --- คะแนนแบบสอบถาม (0-5) ---
 	Q1 int `json:"q1"`

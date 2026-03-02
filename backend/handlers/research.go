@@ -1,3 +1,4 @@
+//handlers/research.go
 package handlers
 
 import (
@@ -38,8 +39,8 @@ func SubmitSurveyHandler(c *gin.Context) {
 
 	// 2. ค้นหา Journey ล่าสุดที่ทำ 2FA สำเร็จแล้วแต่ยังไม่ได้ทำ Survey
 	var journey database.ResearchJourney
-	err := database.DB.Where("user_id = ? AND current_stage = ?", userID, "2fa_success").
-		Order("created_at desc").First(&journey).Error
+	err := database.DB.Where("user_id = ? AND current_stage != ?", userID, "survey_completed").
+        Order("created_at desc").First(&journey).Error
 
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "No active research journey found for this user"})
@@ -87,6 +88,8 @@ func syncDataToGoogleSheets(j database.ResearchJourney) {
 		"timestamp":     timeStr,
 		"user_id":       j.UserID,
 		"session_id":    j.SessionID,
+		"experiment_mode": j.ExperimentMode,
+        "risk_level":      j.RiskLevel,
 		"login_method":  j.LoginMethod,
 		"time_login":    j.TimeLogin,
 		"time_captcha":  j.TimeCaptcha,
