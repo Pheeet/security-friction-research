@@ -15,6 +15,7 @@ import (
 	"backend-api/database"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 //dummy secret key for testing, replace with your own key from https://www.cloudflare.com/turnstile
@@ -103,6 +104,20 @@ func VerifyTurnstile(c *gin.Context) {
 			journey.CurrentStage = "captcha_success"
 			database.DB.Save(&journey)
 			go syncDataToGoogleSheets(journey)
+
+			if journey.RiskLevel == "medium" {
+				secret := os.Getenv("JWT_SECRET")
+				if secret == "" {
+					secret = "fallback-secret-for-dev"
+				}
+				token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+					"user_id": uint(uid),
+					"exp":     time.Now().Add(time.Hour * 24).Unix(),
+				})
+				if tokenString, err := token.SignedString([]byte(secret)); err == nil {
+					c.SetCookie("auth_token", tokenString, 3600*24, "/", "localhost", false, true)
+				}
+			}
 		}
 
 		fmt.Println("Verification Success!")

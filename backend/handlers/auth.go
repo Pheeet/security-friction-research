@@ -186,6 +186,18 @@ func LoginHandler(c *gin.Context) {
 		} else {
 			require2FA = false 
 		}
+
+		if riskLevel == "low" {
+			secret := os.Getenv("JWT_SECRET")
+			if secret == "" { secret = "fallback-secret-for-dev" }
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+				"user_id": user.ID,
+				"exp":     time.Now().Add(time.Hour * 24).Unix(),
+			})
+			if tokenString, err := token.SignedString([]byte(secret)); err == nil {
+				c.SetCookie("auth_token", tokenString, 3600*24, "/", "localhost", false, true)
+			}
+		}
 	}
 
 	// [RESEARCH LOGIC] สร้าง SessionID และเริ่มบันทึก Journey
