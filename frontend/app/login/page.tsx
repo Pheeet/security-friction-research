@@ -35,6 +35,7 @@ export default function LoginPage() {
   const absoluteStartTime = useRef<number>(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   const [loginError, setLoginError] = useState('');
   const [isShaking, setIsShaking] = useState(false);
@@ -98,6 +99,8 @@ export default function LoginPage() {
     setLoginError('');
     setIsShaking(false);
     setIsLoading(true);
+
+    setIsAnalyzing(true);
     
     const timeSpentMs = Date.now() - absoluteStartTime.current;
 
@@ -128,6 +131,11 @@ export default function LoginPage() {
             sessionStorage.setItem('captcha_type', data.captcha_type || ''); 
             sessionStorage.setItem('2fa_method', data.method || 'email');
 
+            if (data.token) {
+              document.cookie = `auth_token=${data.token}; path=/; max-age=86400`;
+            }
+
+            document.cookie = `experiment_mode=${experimentMode}; path=/; max-age=86400`;
             setIsLoading(false);
             setIsSuccess(true);
 
@@ -135,17 +143,19 @@ export default function LoginPage() {
                 if (data.captcha_type === 'none' && data.require_2fa === false) {
                     router.push('/survey');
                 } else {
-                    router.push(`/security-checkpoint`);
+                    router.push(`/security-checkpoint?userId=${data.user_id}&method=email`);
                 }
-            }, 1000); 
+            }, 1500);
 
         } else {
+            setIsAnalyzing(false);
             setIsLoading(false); 
             setLoginError(data.error || 'Invalid credentials');
             setIsShaking(true);
             setTimeout(() => setIsShaking(false), 500); 
         }
     } catch (error) {
+      setIsAnalyzing(false);
         setIsLoading(false);
         console.error("Login Error:", error);
         setLoginError('Cannot connect to server');
@@ -185,6 +195,18 @@ export default function LoginPage() {
     pointerEvents: 'none' as const,
   });
 
+  if (isAnalyzing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-gray-800 font-bold text-lg mb-2">Analyzing login behavior...</p>
+          <p className="text-gray-500 text-sm">กำลังวิเคราะห์พฤติกรรมเพื่อความปลอดภัยของคุณ</p>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9f9f9' }}>
       
