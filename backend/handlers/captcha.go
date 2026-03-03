@@ -153,12 +153,13 @@ func VerifyCaptcha(c *gin.Context) {
 		return
 	}
 
-
 	// บันทึกลง Database True and false
 	isCorrect := Store.Verify(req.CaptchaID, req.Answer, true)
 	sessionID, _ := c.Get("research_session_id")
-    sessIDStr := "Unknown"
-    if s, ok := sessionID.(string); ok { sessIDStr = s }
+	sessIDStr := "Unknown"
+	if s, ok := sessionID.(string); ok {
+		sessIDStr = s
+	}
 	database.DB.Create(&database.ResearchLog{
 		SessionID:   sessIDStr, // <--- บันทึกลง DB ตรงนี้
 		CaptchaID:   req.CaptchaID,

@@ -1,4 +1,4 @@
-//database/db.go
+// database/db.go
 package database
 
 import (
@@ -28,27 +28,29 @@ type ResearchLog struct {
 
 type ResearchJourney struct {
 	gorm.Model
-	UserID       uint   `json:"user_id"`
-	SessionID    string `json:"session_id"` // เอาไว้ผูกกับตอน Login
-	LoginMethod  string `json:"login_method"`
-	
+	UserID      uint   `json:"user_id"`
+	SessionID   string `json:"session_id"` // เอาไว้ผูกกับตอน Login
+	LoginMethod string `json:"login_method"`
+
 	// --- เก็บเวลาแต่ละด่าน (มิลลิวินาที) ---
-	TimeLogin    int64  `json:"time_login"`
-	TimeCaptcha  int64  `json:"time_captcha"`
-	CaptchaType  string `json:"captcha_type"`
-	Time2FA      int64  `json:"time_2fa"`
-	
+	TimeLogin   int64  `json:"time_login"`
+	TimeCaptcha int64  `json:"time_captcha"`
+	CaptchaType string `json:"captcha_type"`
+	Time2FA     int64  `json:"time_2fa"`
+
 	// --- สถานะเพื่อดูว่าคน "ถอดใจ" ที่ด่านไหน (Drop-off tracking) ---
-	CurrentStage string `json:"current_stage"` 
+	CurrentStage   string `json:"current_stage"`
 	ExperimentMode string `json:"experiment_mode"`
 	RiskLevel      string `json:"risk_level"`
-	
+
 	// --- คะแนนแบบสอบถาม (0-5) ---
-	Q1 int `json:"q1"`
-	Q2 int `json:"q2"`
-	Q3 int `json:"q3"`
-	Q4 int `json:"q4"`
-	Q5 int `json:"q5"`
+	Q1       int    `json:"q1"`
+	Q2       int    `json:"q2"`
+	Q3       int    `json:"q3"`
+	Q4       int    `json:"q4"`
+	Q5       int    `json:"q5"`
+	AgeGroup string `gorm:"type:varchar(20)"` // เก็บเป็น string ตามช่วงอายุ เช่น "18-24"
+	Gender   string `gorm:"type:varchar(20)"` // เก็บเป็น "Male", "Female", "Other", "None"
 }
 
 type User struct {

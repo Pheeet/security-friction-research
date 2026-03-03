@@ -1,11 +1,9 @@
-//app/survey
-
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-// --- โครงสร้างคำถามที่แกะมาจากรูปภาพ ---
+// --- โครงสร้างคำถามเดิม ---
 const surveyQuestions = [
   {
     id: 'q1',
@@ -71,6 +69,14 @@ const surveyQuestions = [
 
 export default function SurveyPage() {
   const router = useRouter();
+  
+  // State สำหรับเก็บข้อมูลส่วนตัวที่เพิ่มมา
+  const [demographics, setDemographics] = useState({
+    ageGroup: '',
+    gender: '',
+    otherGenderInput: '' // เก็บค่า Text กรณีเลือก 'อื่นๆ'
+  });
+
   const [answers, setAnswers] = useState<Record<string, number | null>>({
     q1: null,
     q2: null,
@@ -78,15 +84,28 @@ export default function SurveyPage() {
     q4: null,
     q5: null,
   });
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // อัปเดตคำตอบ
+  // อัปเดตคำตอบ Demographics
+  const handleDemographicChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setDemographics((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // อัปเดตคำตอบ Survey
   const handleOptionChange = (questionId: string, value: number) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
 
   // ตรวจสอบว่าตอบครบทุกข้อหรือยัง
-  const isAllAnswered = Object.values(answers).every((val) => val !== null);
+  const isSurveyAnswered = Object.values(answers).every((val) => val !== null);
+  const isDemographicsAnswered = 
+    demographics.ageGroup !== '' && 
+    demographics.gender !== '' && 
+    (demographics.gender !== 'Other' || demographics.otherGenderInput.trim() !== '');
+
+  const isAllAnswered = isSurveyAnswered && isDemographicsAnswered;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,13 +116,19 @@ export default function SurveyPage() {
 
     setIsSubmitting(true);
 
+    // ประกอบร่าง Gender เพื่อส่งไป Backend
+    const finalGender = demographics.gender === 'Other' 
+      ? `Other: ${demographics.otherGenderInput}` 
+      : demographics.gender;
+
     try {
-      // 1. ส่งคำตอบไปให้ Backend (ส่วนข้อมูลเวลา Backend จะไปดึงจาก DB เอง)
       const res = await fetch('http://localhost:8080/api/research/survey', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // ส่ง JWT Cookie ไปด้วยเพื่อให้ Backend รู้ว่าเป็นใคร
+        credentials: 'include',
         body: JSON.stringify({
+          ageGroup: demographics.ageGroup,
+          gender: finalGender,
           q1: answers.q1,
           q2: answers.q2,
           q3: answers.q3,
@@ -142,15 +167,110 @@ export default function SurveyPage() {
           <p className="text-red-500 text-sm mt-4">* ระบุว่าเป็นคำถามที่จำเป็น</p>
         </div>
 
-        {/* ฟอร์มคำถาม */}
         <form onSubmit={handleSubmit} className="space-y-6">
+          
+          {/* ส่วนข้อมูลทั่วไป (Demographics) */}
+          <div className="bg-white rounded-lg shadow-sm p-6 sm:p-8 border border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6 border-b pb-2">ข้อมูลทั่วไป</h2>
+
+            {/* 1. ช่วงอายุ (Dropdown) */}
+            <div className="mb-6">
+              <label htmlFor="ageGroup" className="block text-lg font-medium text-gray-900 mb-2">
+                อายุของคุณอยู่ในช่วงใด? <span className="text-red-500">*</span>
+              </label>
+              <select
+                id="ageGroup"
+                name="ageGroup"
+                value={demographics.ageGroup}
+                onChange={handleDemographicChange}
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md"
+              >
+                <option value="" disabled>-- กรุณาเลือกช่วงอายุ --</option>
+                <option value="Under 18">ต่ำกว่า 18 ปี</option>
+                <option value="18-24">18 - 24 ปี</option>
+                <option value="25-34">25 - 34 ปี</option>
+                <option value="35-49">35 - 49 ปี</option>
+                <option value="50+">50 ปีขึ้นไป</option>
+              </select>
+            </div>
+
+            {/* 2. เพศ (Radio/Bullet) */}
+            <div>
+              <label className="block text-lg font-medium text-gray-900 mb-3">
+                เพศของคุณ <span className="text-red-500">*</span>
+              </label>
+              <div className="space-y-3">
+                {/* ชาย */}
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="gender"
+                    value="Male"
+                    checked={demographics.gender === 'Male'}
+                    onChange={handleDemographicChange}
+                    className="w-5 h-5 text-green-600 border-gray-300 focus:ring-green-500 mr-3"
+                  />
+                  <span className="text-gray-700">ชาย (Male)</span>
+                </label>
+                
+                {/* หญิง */}
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="gender"
+                    value="Female"
+                    checked={demographics.gender === 'Female'}
+                    onChange={handleDemographicChange}
+                    className="w-5 h-5 text-green-600 border-gray-300 focus:ring-green-500 mr-3"
+                  />
+                  <span className="text-gray-700">หญิง (Female)</span>
+                </label>
+
+                {/* ไม่ต้องการตอบ */}
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="gender"
+                    value="Prefer not to say"
+                    checked={demographics.gender === 'Prefer not to say'}
+                    onChange={handleDemographicChange}
+                    className="w-5 h-5 text-green-600 border-gray-300 focus:ring-green-500 mr-3"
+                  />
+                  <span className="text-gray-700">ไม่ต้องการตอบ (Prefer not to say)</span>
+                </label>
+
+                {/* อื่นๆ */}
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="gender"
+                    value="Other"
+                    checked={demographics.gender === 'Other'}
+                    onChange={handleDemographicChange}
+                    className="w-5 h-5 text-green-600 border-gray-300 focus:ring-green-500 mr-3"
+                  />
+                  <span className="text-gray-700 whitespace-nowrap mr-3">อื่นๆ / ไม่ระบุ (โปรดระบุ):</span>
+                  <input
+                    type="text"
+                    name="otherGenderInput"
+                    value={demographics.otherGenderInput}
+                    onChange={handleDemographicChange}
+                    disabled={demographics.gender !== 'Other'}
+                    placeholder="ระบุเพศของคุณ"
+                    className={`mt-1 block w-full sm:w-auto flex-1 border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm px-3 py-1.5 transition-opacity ${demographics.gender !== 'Other' ? 'opacity-50 cursor-not-allowed bg-gray-100' : 'bg-white'}`}
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* ส่วนฟอร์มคำถาม Q1-Q5 */}
           {surveyQuestions.map((q, index) => (
             <div key={q.id} className="bg-white rounded-lg shadow-sm p-6 sm:p-8 border border-gray-200">
               <h2 className="text-lg font-medium text-gray-900 mb-6">
                 {index + 1}. {q.text} <span className="text-red-500">*</span>
               </h2>
               
-              {/* Radio Button Group แบบ Responsive (จอคอมเรียงแนวนอน จอมือถือเรียงแนวตั้ง) */}
               <div className="flex flex-col sm:flex-row sm:justify-between space-y-4 sm:space-y-0">
                 {q.options.map((opt) => (
                   <label 

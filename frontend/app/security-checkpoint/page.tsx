@@ -10,7 +10,7 @@ function CheckpointRedirector() {
   const [isClearing, setIsClearing] = useState(false);
 
   useEffect(() => {
-    // ดึงค่าที่ส่งมาจากหน้า Login หรือ Google SSO
+    // 1. ดึงค่าที่ส่งมาจากหน้า Login หรือ Google SSO
     const userId = searchParams.get('userId');
     const method = searchParams.get('method') || 'email';
 
@@ -26,6 +26,7 @@ function CheckpointRedirector() {
       numericUserId = parseInt(sessionUserId || '0', 10);
     }
 
+    // 2. จัดการกับ URL Params ของ Captcha และ 2FA
     const urlCaptcha = searchParams.get('captcha');
     const urlReq2FA = searchParams.get('req2fa');
 
@@ -36,8 +37,9 @@ function CheckpointRedirector() {
     const assignedCaptcha = sessionStorage.getItem('captcha_type');
     const require2FA = sessionStorage.getItem('require_2fa');
 
+    // 3. Adaptive Mode: กรณีไม่ต้องทำ Captcha และ 2FA ให้ไปหน้า Survey เลย
     if (experimentMode === 'adaptive' && assignedCaptcha === 'none' && require2FA === 'false') {
-      setIsClearing(true); // เปิดหน้า Loading
+      setIsClearing(true); // เปิดหน้า Loading แบบเคลียร์ความปลอดภัย
       
       setTimeout(() => {
         router.replace('/survey'); 
@@ -45,35 +47,43 @@ function CheckpointRedirector() {
       return; 
     }
 
-    
-
     let selectedRoute = '';
-    // ใช้ Round-Robin แทน Random
-    // ใช้การหารเอาเศษ (Modulo) 
-    // ถ้า userId = 1 -> ได้ 1 (math)
-    // ถ้า userId = 2 -> ได้ 2 (slider)
-    // ถ้า userId = 3 -> ได้ 3 (cloudflare)
-    // ถ้า userId = 4 -> ได้ 0 (text)
-    // ถ้าบังเอิญ userId แปลงเป็นเลขไม่ได้ (NaN) ให้ fallback กลับไปสุ่มเผื่อเหนียว
+    const routes = ['text', 'math', 'slider', 'cloudflare'];
 
-
+    // 4. ตัดสินใจเลือก Route ของ Captcha
     if (experimentMode === 'adaptive' && assignedCaptcha && assignedCaptcha !== 'none') {
       // โหมด Adaptive: ให้ไปยังด่านที่ Backend คัดกรองมาให้แล้ว
       selectedRoute = assignedCaptcha;
       console.log(`Adaptive Mode: Backend assigned -> ${selectedRoute}`);
+      
     } else {
-      // โหมด Static (ระบบเดิม): ใช้ Round-Robin สุดฉลาดของคุณติณห์
-      const routes = ['text', 'math', 'slider', 'cloudflare'];
-      const index = isNaN(numericUserId) ? Math.floor(Math.random() * routes.length) : (numericUserId % routes.length);
+      // โหมด Static: ใช้ Round-Robin + Offset จากไฟล์เก่าที่คุณเขียนไว้
+      const attemptKey = `captcha_attempt_${numericUserId}`;
+      const currentAttempt = parseInt(localStorage.getItem(attemptKey) || '0', 10);
+
+      let index;
+      if (isNaN(numericUserId)) {
+        // fallback ถ้า userId แปลงไม่ได้ ให้สุ่มเอาเผื่อเหนียว
+        index = Math.floor(Math.random() * routes.length);
+      } else {
+        // ✅ Round Robin + Offset
+        index = (numericUserId + currentAttempt) % routes.length;
+      }
+
       selectedRoute = routes[index];
-      console.log(`Static Mode: Round-Robin assigned -> ${selectedRoute}`);
+      console.log(`Static Mode: Round-Robin + Offset assigned -> ${selectedRoute} (attempt ${currentAttempt})`);
+
+      // เพิ่มจำนวนรอบ (เฉพาะตอนเล่น Static Mode จะได้ไม่กวนการนับของ Adaptive)
+      localStorage.setItem(attemptKey, (currentAttempt + 1).toString());
     }
 
+    // 5. อัปเดต Session และทำการ Redirect
     sessionStorage.setItem('secure_user_id', numericUserId.toString());
-    // สั่ง Redirect ไปที่หน้า Captcha นั้นๆ พร้อมพก userId และ method ไปด้วย
     router.replace(`/captcha/${selectedRoute}?method=${method}`);
+    
   }, [router, searchParams]);
 
+  // UI สำหรับจังหวะข้ามไป Survey
   if (isClearing) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -83,8 +93,9 @@ function CheckpointRedirector() {
         </div>
       </div>
     );
-    }
+  }
 
+  // UI ค่าเริ่มต้นสำหรับจังหวะกำลังโหลดข้อมูล
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="animate-pulse flex flex-col items-center">
