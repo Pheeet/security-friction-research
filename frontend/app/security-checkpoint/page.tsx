@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 function CheckpointRedirector() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const [isClearing, setIsClearing] = useState(false);
 
   useEffect(() => {
     // ดึงค่าที่ส่งมาจากหน้า Login หรือ Google SSO
@@ -35,10 +37,15 @@ function CheckpointRedirector() {
     const require2FA = sessionStorage.getItem('require_2fa');
 
     if (experimentMode === 'adaptive' && assignedCaptcha === 'none' && require2FA === 'false') {
-      console.log('SSO VIP Bypass -> Go straight to Survey!');
-      router.replace('/survey');
-      return; // จบการทำงานฟังก์ชันนี้ทันที ไม่ต้องสับรางไปด่านอื่น
+      setIsClearing(true); // เปิดหน้า Loading
+      
+      setTimeout(() => {
+        router.replace('/survey'); 
+      }, 2000); 
+      return; 
     }
+
+    
 
     let selectedRoute = '';
     // ใช้ Round-Robin แทน Random
@@ -66,6 +73,17 @@ function CheckpointRedirector() {
     // สั่ง Redirect ไปที่หน้า Captcha นั้นๆ พร้อมพก userId และ method ไปด้วย
     router.replace(`/captcha/${selectedRoute}?method=${method}`);
   }, [router, searchParams]);
+
+  if (isClearing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-gray-600 font-medium">Finalizing security clearance...</p>
+        </div>
+      </div>
+    );
+    }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">

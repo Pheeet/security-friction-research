@@ -30,9 +30,11 @@ export default function ThankYouPage() {
     if (destination === '/login') {
       // ฝังโหมด Adaptive แล้วส่งกลับไปหน้า Login
       sessionStorage.setItem('experiment_mode', 'adaptive');
+      document.cookie = "experiment_mode=adaptive; path=/";
       router.push('/login');
     } else {
       sessionStorage.clear();
+      document.cookie = "experiment_mode=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
       window.location.href = destination;
     }
   }

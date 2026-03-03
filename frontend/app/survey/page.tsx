@@ -113,7 +113,9 @@ export default function SurveyPage() {
       });
 
       if (res.ok) {
-        sessionStorage.clear();
+        sessionStorage.removeItem('secure_user_id');
+        sessionStorage.removeItem('captcha_type');
+        sessionStorage.removeItem('require_2fa');
         alert('บันทึกข้อมูลเรียบร้อย ขอบคุณที่ร่วมทดสอบครับ!');
         router.push('/thank-you'); 
       } else {
