@@ -133,7 +133,7 @@ export default function SurveyPage() {
         setIsSuccess(true);
         sessionStorage.removeItem('captcha_type');
         sessionStorage.removeItem('require_2fa');
-        setIsSuccess(true);
+        
         // ไม่ว่าจะจบรอบ 1 หรือรอบ 2 ให้ส่งไปหน้า /thank-you เสมอ
         // เพราะโค้ดใน ThankYouPage.tsx ของคุณจะเช็ค experiment_mode และแยกหน้าให้เอง!
         setTimeout(() => {
