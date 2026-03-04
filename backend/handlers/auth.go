@@ -3,11 +3,12 @@ package handlers
 
 import (
 	"backend-api/database"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 	"unicode"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-	"gopkg.in/gomail.v2"
 )
 
 // ฟังก์ชันตรวจสอบความแข็งแกร่งรหัสผ่าน
@@ -45,39 +45,54 @@ func isPasswordStrong(pass string) bool {
 // ฟังก์ชันช่วยส่งอีเมล
 func sendEmailOTP(to string, otp string, refCode string) error {
 
-	host := os.Getenv("SMTP_HOST")
-	portStr := os.Getenv("SMTP_PORT")
-	user := os.Getenv("SMTP_USER")
-	pass := os.Getenv("SMTP_PASSWORD")
-
-	port, _ := strconv.Atoi(portStr)
-
-	m := gomail.NewMessage()
-	m.SetHeader("From", user)
-	m.SetHeader("To", to)
-	m.SetHeader("Subject", fmt.Sprintf("Security Code: %s - Ref: %s", otp, refCode))
-
-	body := fmt.Sprintf(`
-		<h2>Your OTP Code</h2>
-		<h1>%s</h1>
-		<p>Reference Code: %s</p>
-	`, otp, refCode)
-
-	m.SetBody("text/html", body)
-
-	d := gomail.NewDialer(host, port, user, pass)
-
-	errChan := make(chan error, 1)
-	go func() {
-		errChan <- d.DialAndSend(m)
-	}()
-
-	select {
-	case err := <-errChan:
-		return err
-	case <-time.After(10 * time.Second):
-		return fmt.Errorf("email sending timed out")
+	apiKey := os.Getenv("RESEND_API_KEY")
+	if apiKey == "" {
+		return fmt.Errorf("RESEND_API_KEY not set")
 	}
+
+	type EmailRequest struct {
+		From    string   `json:"from"`
+		To      []string `json:"to"`
+		Subject string   `json:"subject"`
+		HTML    string   `json:"html"`
+	}
+
+	payload := EmailRequest{
+		From:    "Security <onboarding@resend.dev>",
+		To:      []string{to},
+		Subject: fmt.Sprintf("Security Code: %s - Ref: %s", otp, refCode),
+		HTML: fmt.Sprintf(`
+			<h2>Your OTP Code</h2>
+			<h1>%s</h1>
+			<p>Reference Code: %s</p>
+		`, otp, refCode),
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", "https://api.resend.com/emails", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("failed to send email, status: %d", resp.StatusCode)
+	}
+
+	return nil
 }
 
 // 1. สำหรับ Login (ใช้แค่ User/Pass)
@@ -205,9 +220,9 @@ func LoginHandler(c *gin.Context) {
 				"exp":     time.Now().Add(time.Hour * 24).Unix(),
 			})
 			if tokenString, err := token.SignedString([]byte(secret)); err == nil {
-		generatedToken = tokenString
-		c.SetCookie("auth_token", tokenString, 3600*24, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
-		}
+				generatedToken = tokenString
+				c.SetCookie("auth_token", tokenString, 3600*24, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
+			}
 		}
 
 	}
