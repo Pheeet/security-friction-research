@@ -3,12 +3,12 @@ package handlers
 
 import (
 	"backend-api/database"
-	"bytes"
-	"encoding/json"
+	"crypto/tls"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 	"unicode"
 
@@ -16,6 +16,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/gomail.v2"
 )
 
 // ฟังก์ชันตรวจสอบความแข็งแกร่งรหัสผ่าน
@@ -44,55 +45,47 @@ func isPasswordStrong(pass string) bool {
 
 // ฟังก์ชันช่วยส่งอีเมล
 func sendEmailOTP(to string, otp string, refCode string) error {
+	host := os.Getenv("SMTP_HOST")     // ต้องเป็น: smtp.gmail.com
+	portStr := os.Getenv("SMTP_PORT")  // ต้องเป็น: 587
+	user := os.Getenv("SMTP_USER")     // อีเมล Gmail ของคุณ
+	pass := os.Getenv("SMTP_PASSWORD") // App Password 16 หลัก (ไม่ใช่รหัสผ่านอีเมลปกติ)
 
-	apiKey := os.Getenv("RESEND_API_KEY")
-	if apiKey == "" {
-		return fmt.Errorf("RESEND_API_KEY not set")
-	}
-
-	type EmailRequest struct {
-		From    string   `json:"from"`
-		To      []string `json:"to"`
-		Subject string   `json:"subject"`
-		HTML    string   `json:"html"`
-	}
-
-	payload := EmailRequest{
-		From:    "Security <onboarding@resend.dev>",
-		To:      []string{to},
-		Subject: fmt.Sprintf("Security Code: %s - Ref: %s", otp, refCode),
-		HTML: fmt.Sprintf(`
-			<h2>Your OTP Code</h2>
-			<h1>%s</h1>
-			<p>Reference Code: %s</p>
-		`, otp, refCode),
-	}
-
-	jsonData, err := json.Marshal(payload)
+	port, err := strconv.Atoi(portStr)
 	if err != nil {
+		port = 587 // บังคับ fallback เป็น 587 เผื่อลืมตั้งค่า
+	}
+
+	m := gomail.NewMessage()
+	m.SetHeader("From", user)
+	m.SetHeader("To", to)
+	m.SetHeader("Subject", fmt.Sprintf("Security Code: %s - Ref: %s", otp, refCode))
+
+	body := fmt.Sprintf(`
+        <h2>Your OTP Code</h2>
+        <h1>%s</h1>
+        <p>Reference Code: %s</p>
+    `, otp, refCode)
+
+	m.SetBody("text/html", body)
+
+	d := gomail.NewDialer(host, port, user, pass)
+
+	// สำคัญมาก! เซิร์ฟเวอร์บน Render บางทีมีปัญหาเรื่อง Certificate
+	// บรรทัดนี้จะช่วยให้การส่งผ่าน TLS ราบรื่นขึ้นและไม่ติด Timeout
+	d.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- d.DialAndSend(m)
+	}()
+
+	select {
+	case err := <-errChan:
 		return err
+	// ขยายเวลา Timeout เป็น 30 วินาที ให้เวลาเซิร์ฟเวอร์ฟรีหายใจหน่อย
+	case <-time.After(30 * time.Second):
+		return fmt.Errorf("email sending timed out after 30 seconds")
 	}
-
-	req, err := http.NewRequest("POST", "https://api.resend.com/emails", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("failed to send email, status: %d", resp.StatusCode)
-	}
-
-	return nil
 }
 
 // 1. สำหรับ Login (ใช้แค่ User/Pass)
