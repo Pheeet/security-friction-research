@@ -3,8 +3,8 @@
 import { useState, useEffect, CSSProperties, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-// แยกส่วนที่มี useSearchParams ออกมาเป็น Component ย่อย
-function RegisterContent() {
+// 1. เปลี่ยนชื่อจาก RegisterPage เป็น RegisterForm (ไม่ใส่ export default)
+function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -35,7 +35,6 @@ function RegisterContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // 🔥 1. เพิ่ม State สำหรับปุ่ม Loading และ Success
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -134,7 +133,6 @@ function RegisterContent() {
 
     if (Object.values(newErrors).some(x => x !== '')) return; 
 
-    // 🔥 2. เริ่มหมุนอนิเมชั่นตอนกด Submit
     setIsLoading(true);
 
     try {
@@ -156,7 +154,6 @@ function RegisterContent() {
         const timeSpent = (endTime - startTime) / 1000; 
         sessionStorage.setItem('time_reg', timeSpent.toString());
         
-        // 🔥 3. เปลี่ยนเป็นสถานะ Success ค้างไว้ 1.5 วินาที ให้คนดูอนิเมชั่นจบ ก่อนย้ายหน้า
         setIsLoading(false);
         setIsSuccess(true);
         setTimeout(() => {
@@ -322,33 +319,6 @@ function RegisterContent() {
                 />
              ))}
           </div>
-
-          {formData.password.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '6px' }}>
-               <span style={{ fontSize: '0.75rem', fontWeight: 600, color: currentStrength.color }}>
-                 {currentStrength.label}
-               </span>
-               
-               <div className="group relative ml-2 flex items-center justify-center">
-                  <span style={{ 
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', 
-                    width: '14px', height: '14px', borderRadius: '50%', backgroundColor: '#6b7280', 
-                    color: 'white', fontSize: '10px', cursor: 'help', fontWeight: 'bold'
-                  }}>i</span>
-                  
-                  <div className="absolute bottom-full right-0 mb-2 hidden w-48 p-3 bg-gray-800 text-white text-xs rounded-lg shadow-lg group-hover:block z-10">
-                     <p className="font-semibold mb-1 text-gray-200">Missing Requirements:</p>
-                     {missingReqs.length > 0 ? (
-                        <ul style={{ paddingLeft: '16px', margin: 0, listStyleType: 'disc', lineHeight: '1.6' }}>
-                           {missingReqs.map((req, i) => <li key={i}>{req}</li>)}
-                        </ul>
-                     ) : (
-                        <span className="text-teal-400">Perfect! Password is very strong.</span>
-                     )}
-                  </div>
-               </div>
-            </div>
-          )}
         </div>
 
         <div style={{ marginTop: '-5px' }}>
@@ -379,7 +349,6 @@ function RegisterContent() {
           {errors.confirmPassword && <p style={errorTextStyle}>{errors.confirmPassword}</p>}
         </div>
 
-        {/* 🔥 5. ปุ่มที่มีอนิเมชั่นขอบหมุน */}
         <button 
           type="submit" 
           disabled={isButtonDisabled || isLoading || isSuccess} 
@@ -428,22 +397,22 @@ function RegisterContent() {
   );
 }
 
-// หน้า Page หลักที่ Export ออกไปใช้งาน โดยมีการใช้ Suspense ครอบไว้
+// 2. Export หน้าเพจหลัก พร้อมครอบ <Suspense>
 export default function RegisterPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb' }}>
-      
-      {/* 🔥 4. ฝัง Keyframe สำหรับหมุนเส้นขอบ */}
       <style>{`
         @keyframes spin-border {
           0% { transform: translate(-50%, -50%) rotate(0deg); }
           100% { transform: translate(-50%, -50%) rotate(360deg); }
         }
       `}</style>
-
-      <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>Loading form...</div>}>
-        <RegisterContent />
+      
+      {/* นี่คือหัวใจสำคัญที่ Vercel ต้องการครับ */}
+      <Suspense fallback={<div style={{ padding: '2rem' }}>Loading...</div>}>
+        <RegisterForm />
       </Suspense>
+      
     </div>
   );
 }
