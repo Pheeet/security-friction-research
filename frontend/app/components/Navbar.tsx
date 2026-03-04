@@ -1,5 +1,3 @@
-//components/Navbar.tsx
-
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
@@ -8,27 +6,30 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  // 🚫 รายชื่อหน้าที่ "ไม่ต้องการ" ให้โชว์ปุ่ม Logout
-  const hiddenPaths = ['/login', '/register'];
-    if (hiddenPaths.some((path) => pathname.startsWith(path))) {
-    return null;
-  }
-  // เช็คว่า Path ปัจจุบันขึ้นต้นด้วยคำต้องห้ามไหม
-  // (เช่น /2fa/challenge ก็จะถือว่าตรงกับ /2fa และถูกซ่อน)
-  const shouldHide = hiddenPaths.some((path) => pathname.startsWith(path));
+  // 🚫 1. หน้าที่ "ไม่ต้องการ" ให้โชว์ปุ่ม Logout แบบระบุชื่อเป๊ะๆ (Exact Match)
+  const exactHiddenPaths = ['/', '/welcome', '/login', '/register'];
+  
+  // 🚫 2. โฟลเดอร์หน้าที่ต้องการซ่อนทั้งหมด (Prefix Match)
+  // (เช่น ถ้ามี /2fa/challenge, /2fa/email ก็จะถูกซ่อนทั้งหมด)
+  const prefixHiddenPaths = ['/2fa', '/captcha'];
 
-  if (shouldHide) {
+  // ตรวจสอบเงื่อนไขว่าตรงกับข้อ 1 หรือข้อ 2 ไหม
+  const isExactHidden = exactHiddenPaths.includes(pathname);
+  const isPrefixHidden = prefixHiddenPaths.some((path) => pathname.startsWith(path));
+
+  // ถ้าตรงเงื่อนไขข้อใดข้อหนึ่ง ให้ซ่อน Navbar (return null)
+  if (isExactHidden || isPrefixHidden) {
     return null; 
   }
 
   const handleLogout = async () => {
     try {
       // 🔥 0. ล้างข้อมูลจับเวลาของงานวิจัยทิ้งทั้งหมด! (สำคัญมากสำหรับการทดลอง)
-     
+      sessionStorage.clear();
 
       // 1. เรียก API ให้ Server ล้าง Cookie ให้สะอาด
       await fetch('/api/logout', { method: 'POST' });
-      sessionStorage.clear();
+      
       // 2. ล้าง Client Router Cache 
       router.refresh();
 
@@ -38,7 +39,7 @@ export default function Navbar() {
     } catch (error) {
       console.error('Logout failed:', error);
       // Fallback: ล้างไพ่แบบ Manual
-      sessionStorage.clear(); // เผื่อ API พังก็ต้องล้าง Data ด้วย
+      sessionStorage.clear(); 
       document.cookie = "is-logged-in=; path=/; max-age=0";
       window.location.href = '/login';
     }
