@@ -1,11 +1,12 @@
 //middleware/session.go
 
 package middleware
-
 import (
 	"backend-api/database"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/google/uuid"
 )
 
@@ -13,6 +14,9 @@ const SessionCookieName = "research_session_id"
 
 func SessionMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Set SameSite Lax mode for CSRF protection
+		c.SetSameSite(http.SameSiteLaxMode)
+
 		sessionID, err := c.Cookie(SessionCookieName)
 		if err != nil || sessionID == "" {
 			sessionID = uuid.New().String() // อัปเดตค่าลงตัวแปรเดิมเลย

@@ -56,7 +56,8 @@ func GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User data fetch failed"})
 		return
