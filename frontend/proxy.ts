@@ -31,6 +31,12 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    /*
+     * Matcher แบบครอบจักรวาลที่ปลอดภัยที่สุดสำหรับ Next.js 16:
+     * 1. ต้องมี '/' เพื่อให้หน้าหลักทำงานได้
+     * 2. ดักหน้าอื่นๆ ที่เราต้องการ
+     */
+    '/',
     '/login',
     '/register',
     '/survey',
