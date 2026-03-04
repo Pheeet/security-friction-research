@@ -86,7 +86,7 @@ export default function ThankYouPage() {
             </p>
             <button 
               // 👇 เปลี่ยนตรงนี้ให้ชี้ไปที่หน้า /welcome
-              onClick={() => handleLogoutAndRedirect('/welcome')}
+              onClick={() => handleLogoutAndRedirect('/')}
               className="bg-gray-800 hover:bg-gray-900 text-white font-semibold py-3 px-8 rounded-lg transition-colors"
             >
               กลับสู่หน้าหลัก

@@ -1,38 +1,77 @@
-//app/page.tsx
+'use client';
 
-import Link from "next/link";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
-export default function Home() {
+export default function WelcomePage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    sessionStorage.clear();
+    document.cookie = "experiment_mode=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+  }, []);
+
+  const handleStartTest = () => {
+    sessionStorage.setItem('experiment_mode', 'static');
+    document.cookie = "experiment_mode=static; path=/";
+    router.push('/login');
+  };
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gray-900 text-white p-6">
-      <div className="max-w-2xl w-full text-center space-y-8">
-        <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-          Security Friction Research
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 font-sans text-center">
+      {/* 👇 เปลี่ยนจาก max-w-xl เป็น max-w-2xl ตรงนี้ครับ 👇 */}
+      <div className="max-w-2xl w-full bg-white rounded-xl shadow-lg p-10">
+        
+        <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+          </svg>
+        </div>
+
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">
+          ยินดีต้อนรับสู่การทดสอบระบบ!
         </h1>
-        <p className="text-gray-400 text-lg">
-          เลือกรูปแบบ CAPTCHA เพื่อเริ่มทดสอบ (จับเวลาอัตโนมัติ)
+        <p className="text-gray-600 text-lg mb-8 leading-relaxed">
+          งานวิจัยนี้มีวัตถุประสงค์เพื่อศึกษาพฤติกรรมผู้ใช้งาน <br className="hidden sm:block"/>
+          และประเมินระดับความพึงพอใจต่อระบบรักษาความปลอดภัย <br className="hidden sm:block"/>
+          ในการยืนยันตัวตน (Authentication) รูปแบบต่างๆ
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-          <Link href="/captcha/text" className="group block p-8 bg-gray-800 rounded-2xl border border-gray-700 hover:border-blue-500 transition-all">
-            <h2 className="text-2xl font-bold mb-2 group-hover:text-blue-400">📝 1. Text CAPTCHA</h2>
-            <p className="text-gray-400 text-sm">อ่านตัวอักษร (High Friction)</p>
-          </Link>
-
-          <Link href="/captcha/math" className="group block p-8 bg-gray-800 rounded-2xl border border-gray-700 hover:border-green-500 transition-all">
-            <h2 className="text-2xl font-bold mb-2 group-hover:text-green-400">🧮 2. Math CAPTCHA</h2>
-            <p className="text-gray-400 text-sm">คิดเลขง่ายๆ (Cognitive Load)</p>
-          </Link>
-          <Link href="/captcha/slider" className="group block p-8 bg-gray-800 rounded-2xl border border-gray-700 hover:border-purple-500 transition-all">
-            <h2 className="text-2xl font-bold mb-2 group-hover:text-purple-400">🧩 3. Slider CAPTCHA</h2>
-            <p className="text-gray-400 text-sm">เลื่อนชิ้นจิ๊กซอว์ให้ตรง (Motor Skills)</p>
-          </Link>
-          <Link href="/captcha/cloudflare" className="group block p-8 bg-gray-800 rounded-2xl border border-gray-700 hover:border-yellow-500 transition-all">
-            <h2 className="text-2xl font-bold mb-2 group-hover:text-yellow-400">🛡️ 4. Cloudflare Turnstile</h2>
-            <p className="text-gray-400 text-sm">CAPTCHA แบบใหม่จาก Cloudflare (Low Friction)</p>
-          </Link>
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 mb-8 text-left">
+          <h3 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            คำแนะนำเบื้องต้น:
+          </h3>
+          <ul className="text-blue-700 text-sm space-y-3 ml-7 list-disc">
+            <li>
+              การทดสอบแบ่งออกเป็น <span className="font-bold">2 รอบ</span> คือ ระบบมาตรฐาน และ ระบบที่ปรับตัวได้
+            </li>
+            <li>
+              ในแต่ละรอบ ให้คุณทำการ <span className="font-bold">"เข้าสู่ระบบ (Login)"</span> ตามขั้นตอนที่ปรากฏบนหน้าจอ
+            </li>
+            <li>
+              พิมพ์รหัสผ่านตามธรรมชาติของคุณได้เลย (ไม่ว่าจะพิมพ์ช้า พิมพ์เร็ว กดผิดลบใหม่ หรือก๊อปปี้วาง ระบบรองรับทั้งหมดครับ)
+            </li>
+            <li>
+              เมื่อเข้าสู่ระบบสำเร็จ จะมีแบบสอบถามสั้นๆ 5 ข้อ กรุณาตอบคำถามตามความจริง
+            </li>
+            <li>
+              กรุณา <span className="font-bold">อย่าใช้</span> รหัสผ่านจริงของบัญชีส่วนตัวที่สำคัญในการทดสอบนี้ ให้ใช้รหัสผ่านสมมติที่พิมพ์ได้สะดวกแทน
+            </li>
+          </ul>
         </div>
+
+        <button 
+          onClick={handleStartTest}
+          className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-12 rounded-xl text-lg transition-all transform hover:scale-105 shadow-md hover:shadow-xl"
+        >
+          เริ่มต้นการทดสอบ
+        </button>
+
       </div>
-    </main>
+    </div>
   );
 }
