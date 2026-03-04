@@ -49,6 +49,23 @@ func SubmitSurveyHandler(c *gin.Context) {
 		return
 	}
 
+	// ⭐ ส่วนที่เพิ่มใหม่: ดึงข้อมูลประชากรศาสตร์จากรอบ Static มาเติมให้ถ้ารอบนี้เป็น Adaptive
+	if journey.ExperimentMode == "adaptive" && (req.AgeGroup == "" || req.Gender == "") {
+		var staticJourney database.ResearchJourney
+
+		// ค้นหา Journey รอบ "static" ของ User คนนี้ที่ทำแบบสอบถามเสร็จไปแล้ว
+		err := database.DB.Where("user_id = ? AND experiment_mode = ? AND current_stage = ?", userID, "static", "survey_completed").
+			Order("created_at desc").First(&staticJourney).Error
+
+		if err == nil {
+			// ถ้าเจอ ให้เอาค่าจากรอบแรกมาเติมใส่ request เลย
+			req.AgeGroup = staticJourney.AgeGroup
+			req.Gender = staticJourney.Gender
+		} else {
+			fmt.Println("⚠️ ไม่พบข้อมูลรอบ Static ของ UserID:", userID, "อาจเป็นการทดสอบข้ามขั้นตอน")
+		}
+	}
+
 	// 3. บันทึกคะแนนและ Demographics ลง Database
 	journey.AgeGroup = req.AgeGroup
 	journey.Gender = req.Gender

@@ -10,6 +10,7 @@ export function middleware(request: NextRequest){
 
     const isPublicPath = path === '/login' || 
                          path === '/register' || 
+                         path === '/welcome' ||
                          path === '/security-checkpoint' ||
                          path.startsWith('/captcha') || 
                          path.startsWith('/2fa');

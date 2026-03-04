@@ -183,7 +183,8 @@ function ChallengeContent() {
         setOtpValues(newOtpValues);
       }
     } else if (e.key === 'Enter') {
-      handleVerifyOTP();
+      // ป้องกันไม่ให้ปุ่ม Enter ทำงาน (บังคับให้ระบบ Auto-check จาก handleChange หรือ handlePaste แทน)
+      e.preventDefault(); 
     }
   };
 

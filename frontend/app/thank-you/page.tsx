@@ -1,9 +1,7 @@
-//app/thank-you
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
 export default function ThankYouPage() {
   const router = useRouter()
@@ -21,7 +19,7 @@ export default function ThankYouPage() {
 
   const handleLogoutAndRedirect = async (destination: string) => {
     try {
-      // ยิงไปที่ Next.js API Route ของคุณติณห์เพื่อเคลียร์ Cookies ให้เกลี้ยง!
+      // ยิงไปที่ Next.js API Route ของคุณเพื่อเคลียร์ Cookies ให้เกลี้ยง!
       await fetch('/api/logout', { method: 'POST' });
     } catch (error) {
       console.error("Logout failed:", error);
@@ -33,11 +31,13 @@ export default function ThankYouPage() {
       document.cookie = "experiment_mode=adaptive; path=/";
       router.push('/login');
     } else {
+      // ถ้าระบุว่าไปหน้าอื่น (เช่น /welcome) ให้ล้างข้อมูลทั้งหมดทิ้ง
       sessionStorage.clear();
       document.cookie = "experiment_mode=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
       window.location.href = destination;
     }
   }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 font-sans text-center">
       <div className="max-w-xl w-full bg-white rounded-2xl shadow-lg p-10">
@@ -50,7 +50,9 @@ export default function ThankYouPage() {
         </div>
 
         {isAdaptiveMode ? (
-          // หน้าจอเมื่อทำครบ 2 ระบบแล้ว (จบการทดสอบ 100%)
+          // ==========================================
+          // หน้าจอเมื่อทำครบ 2 ระบบ (Adaptive จบแล้ว)
+          // ==========================================
           <>
             <h1 className="text-3xl font-bold text-gray-900 mb-4">เสร็จสิ้นการทดสอบโดยสมบูรณ์!</h1>
             <p className="text-gray-600 text-lg mb-8 leading-relaxed">
@@ -58,14 +60,17 @@ export default function ThankYouPage() {
               ข้อมูลของคุณเป็นประโยชน์อย่างยิ่งต่องานวิจัยชิ้นนี้
             </p>
             <button 
-              onClick={() => handleLogoutAndRedirect('/')}
+              // 👇 เปลี่ยนตรงนี้ให้ชี้ไปที่หน้า /welcome
+              onClick={() => handleLogoutAndRedirect('/welcome')}
               className="bg-gray-800 hover:bg-gray-900 text-white font-semibold py-3 px-8 rounded-lg transition-colors"
             >
               กลับสู่หน้าหลัก
             </button>
           </>
         ) : (
-          // หน้าจอเมื่อเพิ่งจบระบบปกติ และชวนให้ทำระบบ Adaptive ต่อ
+          // ==========================================
+          // หน้าจอเมื่อเพิ่งจบระบบปกติ (Static)
+          // ==========================================
           <>
             <h1 className="text-3xl font-bold text-gray-900 mb-4">ขอบคุณสำหรับข้อมูลส่วนแรกครับ!</h1>
             <p className="text-gray-600 text-lg mb-8 leading-relaxed">
@@ -87,7 +92,7 @@ export default function ThankYouPage() {
             </div>
 
             <button 
-              // แก้บรรทัดนี้: ให้เรียกฟังก์ชันที่เรามีระบบ Logout ฝังอยู่
+              // 👇 ตรงนี้ชี้ไปที่ /login ถูกต้องแล้วครับ
               onClick={() => handleLogoutAndRedirect('/login')} 
               className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-10 rounded-xl text-lg transition-all transform hover:scale-105 shadow-md hover:shadow-xl"
             >
