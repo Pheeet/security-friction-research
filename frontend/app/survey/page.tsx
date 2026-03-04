@@ -1,4 +1,3 @@
-//app/survey/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -57,12 +56,17 @@ export default function SurveyPage() {
   const router = useRouter();
   
   const [isAdaptivePhase, setIsAdaptivePhase] = useState(false);
+  // ⭐ 1. เพิ่ม State เช็คว่าระบบกำลังโหลดโหมดอยู่ไหม (ตั้งค่าเริ่มต้นเป็น true)
+  const [isCheckingMode, setIsCheckingMode] = useState(true);
 
   useEffect(() => {
+    // โหลดโหมดจาก SessionStorage
     const currentMode = sessionStorage.getItem('experiment_mode');
     if (currentMode === 'adaptive') {
       setIsAdaptivePhase(true);
     }
+    // ⭐ 2. เมื่อโหลดเสร็จแล้ว บอกระบบว่าเลิกโหลดได้เลย
+    setIsCheckingMode(false);
   }, []);
 
   const [demographics, setDemographics] = useState({
@@ -126,14 +130,14 @@ export default function SurveyPage() {
       });
 
       if (res.ok) {
-        // ล้างข้อมูลที่ใช้สำหรับการทดสอบรอบนี้ทิ้งบางส่วน
-        // (ส่วน ID หรือ experiment_mode ปล่อยให้หน้า Thank You ไปจัดการต่อ)
+        setIsSuccess(true);
         sessionStorage.removeItem('captcha_type');
         sessionStorage.removeItem('require_2fa');
 
-        // ไม่ว่าจะจบรอบ 1 หรือรอบ 2 ให้ส่งไปหน้า /thank-you เสมอ
-        // เพราะโค้ดใน ThankYouPage.tsx ของคุณจะเช็ค experiment_mode และแยกหน้าให้เอง!
-        router.push('/thank-you'); 
+        // หน่วงเวลา 1.5 วินาที เพื่อให้โชว์หน้าจอสีเขียวหมุนๆ ว่าบันทึกสำเร็จ แล้วค่อยเด้ง
+        setTimeout(() => {
+             router.push('/thank-you'); 
+        }, 1500);
 
       } else {
         throw new Error("Backend save failed");
@@ -141,22 +145,31 @@ export default function SurveyPage() {
     } catch (error) {
       setIsSubmitting(false);
       alert('เกิดข้อผิดพลาดในการส่งข้อมูล กรุณาลองใหม่อีกครั้ง');
-    } finally {
-      setIsSubmitting(false);
-    }
+    } 
+    // หมายเหตุ: เอา finally ออก เพราะถ้าโหลดสำเร็จ (res.ok) เราอยากค้าง state isSuccess เอาไว้
   };
 
+  // ⭐ 3. หน้าจอตอนที่กำลังโหลดเช็คโหมด (เพื่อแก้ปัญหา UI กระพริบ)
+  if (isCheckingMode) {
+     return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          {/* สามารถใส่ Animation เล็กๆ ตรงนี้ได้ หรือจะปล่อยว่างๆ เพื่อความเนียนก็ได้ */}
+        </div>
+     )
+  }
+
+  // หน้าจอตอนกดปุ่ม Submit ส่งข้อมูลสำเร็จ (รอเด้งไปหน้า Thank You)
   if (isSuccess) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="animate-pulse flex flex-col items-center">
-        <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-800 font-bold text-lg mb-2">Saving your responses...</p>
-        <p className="text-gray-500 text-sm">บันทึกข้อมูลสำเร็จ กำลังพาคุณไปยังหน้าสุดท้าย</p>
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-gray-800 font-bold text-lg mb-2">Saving your responses...</p>
+          <p className="text-gray-500 text-sm">บันทึกข้อมูลสำเร็จ กำลังพาคุณไปยังหน้าสุดท้าย</p>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8 font-sans">
