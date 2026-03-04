@@ -28,8 +28,12 @@ var googleOauthConfig *oauth2.Config
 
 // 1. ตั้งค่า Config (เรียกใช้ใน main.go)
 func InitGoogleAuth() {
+	backendURL := os.Getenv("BACKEND_URL")
+	if backendURL == "" {
+		backendURL = "http://localhost:8080"
+	}
 	googleOauthConfig = &oauth2.Config{
-		RedirectURL: "http://localhost:8080/api/auth/google/callback",
+		RedirectURL: backendURL + "/api/auth/google/callback",
 		// --- ใส่ Client ID และ Secret ของคุณตรงนี้ ---
 		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
@@ -85,8 +89,12 @@ func GoogleCallback(c *gin.Context) {
 		// ตรวจสอบบรรทัดที่ Redirect ไปหน้า Register
 		encodedEmail := url.QueryEscape(googleUser.Email)
 		encodedName := url.QueryEscape(googleUser.Name)
+		frontendURL := os.Getenv("FRONTEND_URL")
+		if frontendURL == "" {
+			frontendURL = "http://localhost:3000"
+		}
 		registerURL := fmt.Sprintf(
-			"http://localhost:3000/register?provider=google&email=%s&fullname=%s",
+			frontendURL+"/register?provider=google&email=%s&fullname=%s",
 			encodedEmail,
 			encodedName,
 		)
@@ -107,7 +115,7 @@ func GoogleCallback(c *gin.Context) {
 			timeLogin = time.Now().UnixMilli() - startTimeMs
 		}
 		// สั่งลบ Cookie ทิ้งเพื่อความสะอาด
-		c.SetCookie("sso_start_time", "", -1, "/", "localhost", false, true)
+		c.SetCookie("sso_start_time", "", -1, "/", os.Getenv("COOKIE_DOMAIN"), os.Getenv("ENV") == "production", true)
 	}
 	experimentMode := "static"
 	modeCookie, err := c.Cookie("experiment_mode")
@@ -133,7 +141,7 @@ func GoogleCallback(c *gin.Context) {
 			"exp":     time.Now().Add(time.Hour * 24).Unix(),
 		})
 		if tokenString, err := token.SignedString([]byte(secret)); err == nil {
-			c.SetCookie("auth_token", tokenString, 3600*24, "/", "localhost", false, true)
+			c.SetCookie("auth_token", tokenString, 3600*24, "/", os.Getenv("COOKIE_DOMAIN"), os.Getenv("ENV") == "production", true)
 		}
 	}
 
@@ -154,11 +162,16 @@ func GoogleCallback(c *gin.Context) {
 	user.TwoFACode = ""
 	user.TwoFARef = ""
 	user.IsPushApproved = false
+	user.TwoFARef = ""
 	user.TwoFAExpiry = time.Time{}
 	database.DB.Save(&user)
 
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000"
+	}
 	checkpointURL := fmt.Sprintf(
-		"http://localhost:3000/security-checkpoint?userId=%d&method=email&mode=%s&risk=%s&captcha=%s&req2fa=%s",
+		frontendURL+"/security-checkpoint?userId=%d&method=email&mode=%s&risk=%s&captcha=%s&req2fa=%s",
 		user.ID, experimentMode, riskLevel, captchaType, require2FA,
 	)
 
@@ -211,7 +224,11 @@ func RequestOTPHandler(c *gin.Context) {
 		user.TwoFACode = ""
 		user.TwoFAExpiry = time.Now().Add(5 * time.Minute)
 
-		link := fmt.Sprintf("http://localhost:8080/api/2fa/simulate-push-approve?user_id=%d", user.ID)
+		backendURL := os.Getenv("BACKEND_URL")
+		if backendURL == "" {
+			backendURL = "http://localhost:8080"
+		}
+		link := fmt.Sprintf(backendURL+"/api/2fa/simulate-push-approve?user_id=%d", user.ID)
 		fmt.Printf("\n--- [PUSH NOTI MOCK] ---\nApprove Link: %s\n----------------------\n", link)
 	}
 

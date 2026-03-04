@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"backend-api/database"
@@ -184,20 +185,26 @@ func imgToPNGBase64(img image.Image) string {
 }
 
 // จำคำตอบ Inmemory
-var sliderAnswers = make(map[string]int)
+var (
+	sliderAnswers = make(map[string]int)
+	sliderMu      sync.RWMutex
+)
 
 func StoreSliderAnswer(sessionID string, answer int) {
+	sliderMu.Lock()
+	defer sliderMu.Unlock()
 	sliderAnswers[sessionID] = answer
 }
 
 func VerifySliderAnswer(sessionID string, userAnswer int) bool {
-
+	sliderMu.Lock()
+	defer sliderMu.Unlock()
 	correctX, exists := sliderAnswers[sessionID]
 	if !exists {
 		return false
 	}
 	delete(sliderAnswers, sessionID) // ลบทิ้งทันทีหลังตรวจ
-
+	
 	// Tolerance +/- 5 pixels
 	diff := correctX - userAnswer
 	if diff < 0 {
@@ -266,7 +273,7 @@ func VerifySlider(c *gin.Context) {
 					"exp":     time.Now().Add(time.Hour * 24).Unix(),
 				})
 				if tokenString, err := token.SignedString([]byte(secret)); err == nil {
-					c.SetCookie("auth_token", tokenString, 3600*24, "/", "localhost", false, true)
+					c.SetCookie("auth_token", tokenString, 3600*24, "/", os.Getenv("COOKIE_DOMAIN"), os.Getenv("ENV") == "production", true)
 				}
 			}
 		}

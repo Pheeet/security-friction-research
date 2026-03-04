@@ -115,7 +115,7 @@ func VerifyTurnstile(c *gin.Context) {
 					"exp":     time.Now().Add(time.Hour * 24).Unix(),
 				})
 				if tokenString, err := token.SignedString([]byte(secret)); err == nil {
-					c.SetCookie("auth_token", tokenString, 3600*24, "/", "localhost", false, true)
+					c.SetCookie("auth_token", tokenString, 3600*24, "/", os.Getenv("COOKIE_DOMAIN"), os.Getenv("ENV") == "production", true)
 				}
 			}
 		}

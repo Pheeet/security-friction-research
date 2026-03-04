@@ -72,14 +72,17 @@ type User struct {
 }
 
 func ConnectDB() {
-	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Bangkok",
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_NAME"),
-		os.Getenv("DB_PORT"),
-	)
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		dsn = fmt.Sprintf(
+			"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Bangkok",
+			os.Getenv("DB_HOST"),
+			os.Getenv("DB_USER"),
+			os.Getenv("DB_PASSWORD"),
+			os.Getenv("DB_NAME"),
+			os.Getenv("DB_PORT"),
+		)
+	}
 
 	var err error
 
@@ -87,6 +90,15 @@ func ConnectDB() {
 
 	if err != nil {
 		log.Fatal("Failed to connect to database: ", err)
+	}
+
+	// Configure Connection Pool for Free Tier (Neon DB)
+	sqlDB, err := DB.DB()
+	if err == nil {
+		sqlDB.SetMaxOpenConns(10)                // Limit total connections
+		sqlDB.SetMaxIdleConns(5)                 // Limit idle connections
+		sqlDB.SetConnMaxLifetime(time.Hour)      // Recycle connections
+		sqlDB.SetConnMaxIdleTime(15 * time.Minute)
 	}
 
 	log.Println("Connected to Database successfully")

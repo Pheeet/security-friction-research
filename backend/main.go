@@ -3,11 +3,14 @@ package main
 
 import (
 	"log"
+	"os"
+	"runtime/debug"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"golang.org/x/time/rate"
 
 	"backend-api/database"
 	"backend-api/handlers"
@@ -15,6 +18,9 @@ import (
 )
 
 func main() {
+	// Free-Tier survival: Tune GC to be more aggressive to save RAM
+	debug.SetGCPercent(50)
+
 	// 1. โหลด .env ก่อน
 	err := godotenv.Load()
 	if err != nil {
@@ -27,9 +33,14 @@ func main() {
 
 	r := gin.Default()
 
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000"
+	}
+
 	// 2. แก้ปัญหา CORS (ให้ Frontend ยิงเข้ามาได้)
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:3000", "http://127.0.0.1:3000"}
+	config.AllowOrigins = []string{frontendURL}
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization", "Accept", "Cookie"}
 	config.ExposeHeaders = []string{"Content-Length", "Set-Cookie"}
@@ -47,8 +58,11 @@ func main() {
 		})
 
 		// --- 🟢 Public Routes (ไม่ต้องใช้ JWT) ---
-		api.POST("/login", handlers.LoginHandler)
-		api.POST("/register", handlers.RegisterHandler)
+		// Strict rate limit for authentication (5 requests per minute, burst 10)
+		authLimit := middleware.RateLimitMiddleware(rate.Every(time.Minute/5), 10)
+
+		api.POST("/login", authLimit, handlers.LoginHandler)
+		api.POST("/register", authLimit, handlers.RegisterHandler)
 		api.GET("/check-availability", handlers.CheckAvailabilityHandler)
 
 		// 🔥 เพิ่มบรรทัดนี้ลงไปตรงนี้ครับ เพื่อให้หน้า 2FA ดึงอีเมลได้
@@ -64,8 +78,8 @@ func main() {
 		// 2FA & Google SSO
 		api.GET("/auth/google/login", handlers.GoogleLogin)
 		api.GET("/auth/google/callback", handlers.GoogleCallback)
-		api.POST("/2fa/request", handlers.RequestOTPHandler)
-		api.POST("/2fa/verify", handlers.Verify2FAHandler) // ตัวนี้เป็นคนแจก JWT
+		api.POST("/2fa/request", authLimit, handlers.RequestOTPHandler)
+		api.POST("/2fa/verify", authLimit, handlers.Verify2FAHandler) // ตัวนี้เป็นคนแจก JWT
 		api.GET("/2fa/check-push", handlers.CheckPushStatus)
 		api.GET("/2fa/simulate-push-approve", handlers.SimulatePushApprove)
 
@@ -78,6 +92,10 @@ func main() {
 		}
 	}
 
-	// รัน Server ที่ Port 8080
-	r.Run(":8080")
+	// รัน Server ที่ Port ตาม Env (Render requirement)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	r.Run(":" + port)
 }

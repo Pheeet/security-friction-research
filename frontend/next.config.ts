@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
               "default-src 'self'; " +
               "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com; " +
               "frame-src https://challenges.cloudflare.com; " +
-              "connect-src 'self' http://localhost:8080 https://challenges.cloudflare.com https://script.google.com https://script.googleusercontent.com; " +
+              "connect-src 'self' " + (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080") + " https://challenges.cloudflare.com https://script.google.com https://script.googleusercontent.com; " +
               "style-src 'self' 'unsafe-inline'; " +
               "img-src 'self' data: blob:;"
           },

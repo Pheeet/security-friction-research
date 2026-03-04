@@ -56,7 +56,7 @@ export default function RegisterPage() {
 
   const checkAvailability = async (field: string, value: string) => {
     try {
-      const res = await fetch(`http://localhost:8080/api/check-availability?${field}=${value}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/check-availability?${field}=${value}`);
       const data = await res.json();
       if (!data.available) {
         const msg = field === 'username' ? 'Username is already taken' : 'Email is already taken';
@@ -138,7 +138,7 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch('http://localhost:8080/api/register', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

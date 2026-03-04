@@ -41,7 +41,7 @@ function ChallengeContent() {
     const fetchUserEmail = async () => {
       if (!userId) return;
       try {
-        const res = await fetch(`http://localhost:8080/api/user/${userId}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/${userId}`);
         const data = await res.json();
         if (res.ok && data.email) {
           setUserEmail(data.email);
@@ -82,7 +82,7 @@ function ChallengeContent() {
 
     const timeTakenMs = Date.now() - startTime; 
     try {
-      const res = await fetch('http://localhost:8080/api/2fa/verify', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/2fa/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -131,7 +131,7 @@ function ChallengeContent() {
     setOtpError('');
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8080/api/2fa/request', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/2fa/request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

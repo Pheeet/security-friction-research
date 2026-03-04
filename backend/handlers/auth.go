@@ -67,7 +67,17 @@ func sendEmailOTP(to string, otp string, refCode string) error {
 
 	d := gomail.NewDialer(host, port, user, pass)
 
-	return d.DialAndSend(m)
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- d.DialAndSend(m)
+	}()
+
+	select {
+	case err := <-errChan:
+		return err
+	case <-time.After(10 * time.Second):
+		return fmt.Errorf("email sending timed out")
+	}
 }
 
 // 1. สำหรับ Login (ใช้แค่ User/Pass)
@@ -92,11 +102,11 @@ type RegisterRequest struct {
 }
 
 type TwoFAResponse struct {
-	Message    string `json:"message"`
-	Require2FA bool   `json:"require_2fa"`
-	UserID     uint   `json:"user_id"`
-	Method     string `json:"method"` // email, push
-	SessionID  string `json:"session_id"`
+	Message        string `json:"message"`
+	Require2FA     bool   `json:"require_2fa"`
+	UserID         uint   `json:"user_id"`
+	Method         string `json:"method"` // email, push
+	SessionID      string `json:"session_id"`
 	ExperimentMode string `json:"experiment_mode"`
 	RiskLevel      string `json:"risk_level"`
 	CaptchaType    string `json:"captcha_type"`
@@ -168,52 +178,52 @@ func LoginHandler(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"})
 		return
 	}
-	
+
 	experimentMode := creds.ExperimentMode
 	if experimentMode == "" {
 		experimentMode = "static" // กันเหนียวเผื่อ Frontend ลืมส่งมา
 	}
 
 	riskLevel := "static"
-	captchaType := ""  // ถ้าเป็น static จะปล่อยว่างไว้ให้ Frontend ไปสุ่มเอง
+	captchaType := "" // ถ้าเป็น static จะปล่อยว่างไว้ให้ Frontend ไปสุ่มเอง
 	require2FA := true
 	var generatedToken string
 
 	if experimentMode == "adaptive" {
 		riskLevel, captchaType = CalculateRiskScore(creds)
 
-		
 		if riskLevel == "high" {
-			require2FA = true  
+			require2FA = true
 		} else {
-			require2FA = false 
+			require2FA = false
 		}
 
 		if riskLevel != "high" {
 			secret := os.Getenv("JWT_SECRET")
-			if secret == "" { secret = "fallback-secret-for-dev" }
+			if secret == "" {
+				secret = "fallback-secret-for-dev"
+			}
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 				"user_id": user.ID,
 				"exp":     time.Now().Add(time.Hour * 24).Unix(),
 			})
 			if tokenString, err := token.SignedString([]byte(secret)); err == nil {
-                generatedToken = tokenString
-                c.SetCookie("auth_token", tokenString, 3600*24, "/", "localhost", false, true)
-            }
+				generatedToken = tokenString
+				c.SetCookie("auth_token", tokenString, 3600*24, "/", os.Getenv("COOKIE_DOMAIN"), os.Getenv("ENV") == "production", true)
+			}
 		}
 	}
 
 	// [RESEARCH LOGIC] สร้าง SessionID และเริ่มบันทึก Journey
 	sessionID := uuid.New().String()
 	journey := database.ResearchJourney{
-		UserID:       user.ID,
-		SessionID:    sessionID,
-		LoginMethod:  "local",
-		TimeLogin:    creds.TimeLogin, // บันทึกเวลาที่ใช้ในหน้า Login
-		CurrentStage: "login_success",
+		UserID:         user.ID,
+		SessionID:      sessionID,
+		LoginMethod:    "local",
+		TimeLogin:      creds.TimeLogin, // บันทึกเวลาที่ใช้ในหน้า Login
+		CurrentStage:   "login_success",
 		ExperimentMode: experimentMode,
 		RiskLevel:      riskLevel,
-		
 	}
 	database.DB.Create(&journey)
 
@@ -231,11 +241,11 @@ func LoginHandler(c *gin.Context) {
 	database.DB.Save(&user)
 
 	c.JSON(http.StatusOK, TwoFAResponse{
-		Message:    "Please complete security check",
-		Require2FA: require2FA,
-		UserID:     user.ID,
-		Method:     method,
-		SessionID:  sessionID,
+		Message:        "Please complete security check",
+		Require2FA:     require2FA,
+		UserID:         user.ID,
+		Method:         method,
+		SessionID:      sessionID,
 		ExperimentMode: experimentMode,
 		RiskLevel:      riskLevel,
 		CaptchaType:    captchaType,
@@ -311,7 +321,7 @@ func Verify2FAHandler(c *gin.Context) {
 		// 3. ตั้งค่า HttpOnly Cookie ระดับ Production
 		// พารามิเตอร์: name, value, maxAge(วินาที), path, domain, secure(HTTPS), httpOnly
 		// หมายเหตุ: secure ให้เป็น false ไปก่อนตอนทำบน localhost ถ้าขึ้นของจริงค่อยเปลี่ยนเป็น true
-		c.SetCookie("auth_token", tokenString, 3600*24, "/", "localhost", false, true)
+		c.SetCookie("auth_token", tokenString, 3600*24, "/", os.Getenv("COOKIE_DOMAIN"), os.Getenv("ENV") == "production", true)
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,

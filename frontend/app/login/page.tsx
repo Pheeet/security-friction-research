@@ -108,7 +108,7 @@ export default function LoginPage() {
 
     const typingTimeMs = firstKeystrokeTime ? Date.now() - firstKeystrokeTime : 0;
     try {
-        const res = await fetch('http://localhost:8080/api/login', {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -168,7 +168,7 @@ export default function LoginPage() {
     document.cookie = `sso_start_time=${absoluteStartTime.current}; path=/; max-age=3600`;
     setIsAnalyzing(true);
     setTimeout(() => {
-      window.location.href = "http://localhost:8080/api/auth/google/login";
+      window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google/login`;
     }, 1500);
   };
 

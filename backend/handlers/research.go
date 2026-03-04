@@ -129,8 +129,13 @@ func syncDataToGoogleSheets(j database.ResearchJourney) {
 
 	jsonPayload, _ := json.Marshal(payload)
 
+	// Use a client with timeout to prevent goroutine leaks
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
 	// ยิง POST ไปที่ Apps Script
-	resp, err := http.Post(scriptURL, "application/json", bytes.NewBuffer(jsonPayload))
+	resp, err := client.Post(scriptURL, "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		fmt.Printf("❌ Sync to Google Sheets failed: %v\n", err)
 		return

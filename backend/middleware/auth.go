@@ -36,7 +36,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		if err != nil || !token.Valid {
 			// ถ้า Token หมดอายุ หรือถูกปลอมแปลง ให้ล้างคุกกี้ทิ้งซะ
-			c.SetCookie("auth_token", "", -1, "/", "localhost", false, true)
+			c.SetCookie("auth_token", "", -1, "/", os.Getenv("COOKIE_DOMAIN"), os.Getenv("ENV") == "production", true)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid or expired token"})
 			c.Abort()
 			return
