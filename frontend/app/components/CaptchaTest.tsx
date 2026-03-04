@@ -33,7 +33,7 @@ export default function CaptchaTest({ userId, type, title, onSuccess }: Props) {
       setStatus(null);
       setInput("");
       
-      const res = await axios.get(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api")}/captcha?type=${type}`, { withCredentials: true });
+      const res = await axios.get(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")}/api/captcha?type=${type}`, { withCredentials: true });
       setImageURL(res.data.image);
       setCaptchaId(res.data.captchaId);
       

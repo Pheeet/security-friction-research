@@ -57,7 +57,7 @@ export default function TurnstileCaptcha({ userId, onVerify }: Props) {
 
           try {
             const res = await axios.post(
-              `${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api")}/turnstile/verify`,
+              `${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")}/api/turnstile/verify`,
               { userId: userId, token, timeTaken }, // ส่ง timeTaken (ms) ไปให้ Backend เผื่อเก็บ Log
               { withCredentials: true },
             );
