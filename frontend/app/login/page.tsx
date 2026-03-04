@@ -1,3 +1,4 @@
+//app/login/page.tsx
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -140,11 +141,8 @@ export default function LoginPage() {
             setIsSuccess(true);
 
             setTimeout(() => {
-                if (data.captcha_type === 'none' && data.require_2fa === false) {
-                    router.push('/survey');
-                } else {
-                    router.push(`/security-checkpoint?userId=${data.user_id}&method=email`);
-                }
+                // ส่งทุกคนไปที่ Checkpoint เสมอ เพื่อให้ Checkpoint โชว์ Loading สีเขียวและเป็นคนพาไป Survey
+                router.push(`/security-checkpoint?userId=${data.user_id}&method=email`);
             }, 1500);
 
         } else {
@@ -167,7 +165,10 @@ export default function LoginPage() {
   const handleGoogleLogin = () => {
     document.cookie = `experiment_mode=${experimentMode}; path=/; max-age=3600`;
     document.cookie = `sso_start_time=${absoluteStartTime.current}; path=/; max-age=3600`;
-    window.location.href = "http://localhost:8080/api/auth/google/login";
+    setIsAnalyzing(true);
+    setTimeout(() => {
+      window.location.href = "http://localhost:8080/api/auth/google/login";
+    }, 1500);
   };
 
   const greenThemeColor = '#059669';
@@ -200,8 +201,21 @@ export default function LoginPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-pulse flex flex-col items-center">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-800 font-bold text-lg mb-2">Analyzing login behavior...</p>
-          <p className="text-gray-500 text-sm">กำลังวิเคราะห์พฤติกรรมเพื่อความปลอดภัยของคุณ</p>
+          
+          {/* สลับข้อความหลักตาม Mode */}
+          <p className="text-gray-800 font-bold text-lg mb-2">
+            {experimentMode === 'adaptive' 
+              ? 'Analyzing login behavior...' 
+              : 'Authenticating...'}
+          </p>
+          
+          {/* สลับข้อความรองตาม Mode */}
+          <p className="text-gray-500 text-sm">
+            {experimentMode === 'adaptive' 
+              ? 'กำลังวิเคราะห์พฤติกรรมเพื่อความปลอดภัยของคุณ' 
+              : 'กำลังตรวจสอบข้อมูลการเข้าสู่ระบบของคุณ'}
+          </p>
+          
         </div>
       </div>
     );

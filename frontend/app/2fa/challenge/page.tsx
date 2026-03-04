@@ -1,3 +1,4 @@
+//app/2fa/challenge/page/tsx
 'use client';
 
 import { useState, useEffect, Suspense, useRef } from 'react';
@@ -94,6 +95,9 @@ function ChallengeContent() {
 
       if (data.success) {
         
+        if (data.token) {
+          document.cookie = `auth_token=${data.token}; path=/; max-age=86400`;
+        }
         
         setLoading(false);
         setIsSuccess(true);

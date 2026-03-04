@@ -8,17 +8,21 @@ export function middleware(request: NextRequest){
 
     const isLoggedIn = request.cookies.has('auth_token');
 
-    const isPublicPath = path === '/login' || 
-                         path === '/register' || 
-                         path === '/security-checkpoint' ||
-                         path.startsWith('/captcha') || 
-                         path.startsWith('/2fa');
+    const isGuestOnlyPath = path === '/login' || path === '/register';
 
-    if (isLoggedIn && isPublicPath) {
+    const isProtectedPath = path === '/survey' || path === '/thank-you';
+
+    // const isPublicPath = path === '/login' || 
+    //                      path === '/register' || 
+    //                      path === '/security-checkpoint' ||
+    //                      path.startsWith('/captcha') || 
+    //                      path.startsWith('/2fa');
+
+    if (isLoggedIn && isGuestOnlyPath) {
       return NextResponse.redirect(new URL('/survey', request.url));
     }
 
-    if (!isLoggedIn && !isPublicPath) {
+    if (!isLoggedIn && isProtectedPath) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
 

@@ -100,6 +100,7 @@ type TwoFAResponse struct {
 	ExperimentMode string `json:"experiment_mode"`
 	RiskLevel      string `json:"risk_level"`
 	CaptchaType    string `json:"captcha_type"`
+	Token          string `json:"token"`
 }
 
 // RegisterHandler
@@ -176,7 +177,8 @@ func LoginHandler(c *gin.Context) {
 	riskLevel := "static"
 	captchaType := ""  // ถ้าเป็น static จะปล่อยว่างไว้ให้ Frontend ไปสุ่มเอง
 	require2FA := true
-	
+	var generatedToken string
+
 	if experimentMode == "adaptive" {
 		riskLevel, captchaType = CalculateRiskScore(creds)
 
@@ -187,7 +189,7 @@ func LoginHandler(c *gin.Context) {
 			require2FA = false 
 		}
 
-		if riskLevel == "low" {
+		if riskLevel != "high" {
 			secret := os.Getenv("JWT_SECRET")
 			if secret == "" { secret = "fallback-secret-for-dev" }
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -195,8 +197,9 @@ func LoginHandler(c *gin.Context) {
 				"exp":     time.Now().Add(time.Hour * 24).Unix(),
 			})
 			if tokenString, err := token.SignedString([]byte(secret)); err == nil {
-				c.SetCookie("auth_token", tokenString, 3600*24, "/", "localhost", false, true)
-			}
+                generatedToken = tokenString
+                c.SetCookie("auth_token", tokenString, 3600*24, "/", "localhost", false, true)
+            }
 		}
 	}
 
@@ -210,6 +213,7 @@ func LoginHandler(c *gin.Context) {
 		CurrentStage: "login_success",
 		ExperimentMode: experimentMode,
 		RiskLevel:      riskLevel,
+		
 	}
 	database.DB.Create(&journey)
 
@@ -235,6 +239,7 @@ func LoginHandler(c *gin.Context) {
 		ExperimentMode: experimentMode,
 		RiskLevel:      riskLevel,
 		CaptchaType:    captchaType,
+		Token:          generatedToken,
 		// ไม่ต้องส่ง RefCode กลับไปตอนนี้ก็ได้ เพราะเดี๋ยว RequestOTPHandler จะสร้างให้ใหม่
 	})
 }
@@ -312,6 +317,7 @@ func Verify2FAHandler(c *gin.Context) {
 			"success": true,
 			"message": "Login Success!",
 			"user":    user.Username,
+			"token":   tokenString,
 		})
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "OTP ไม่ถูกต้องหรือหมดอายุแล้ว"})

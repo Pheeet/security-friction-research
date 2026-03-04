@@ -1,3 +1,4 @@
+//app/security-checkpoint/page.tsx
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -7,7 +8,7 @@ function CheckpointRedirector() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [isClearing, setIsClearing] = useState(false);
+  const [loadingState, setLoadingState] = useState<'preparing' | 'clearing'>('preparing');
 
   useEffect(() => {
     // 1. ดึงค่าที่ส่งมาจากหน้า Login หรือ Google SSO
@@ -19,12 +20,13 @@ function CheckpointRedirector() {
     if (userId) {
       // ถ้ามีใน URL ให้แอบเก็บลงกระเป๋าให้เรียบร้อย
       numericUserId = parseInt(userId, 10);
-      sessionStorage.setItem('secure_user_id', numericUserId.toString());
     } else {
       // ถ้าไม่มีใน URL ให้ดึงจากกระเป๋าที่ Login ยัดไว้ให้
       const sessionUserId = sessionStorage.getItem('secure_user_id');
       numericUserId = parseInt(sessionUserId || '0', 10);
     }
+
+    sessionStorage.setItem('secure_user_id', numericUserId.toString());
 
     // 2. จัดการกับ URL Params ของ Captcha และ 2FA
     const urlCaptcha = searchParams.get('captcha');
@@ -39,10 +41,10 @@ function CheckpointRedirector() {
 
     // 3. Adaptive Mode: กรณีไม่ต้องทำ Captcha และ 2FA ให้ไปหน้า Survey เลย
     if (experimentMode === 'adaptive' && assignedCaptcha === 'none' && require2FA === 'false') {
-      setIsClearing(true); // เปิดหน้า Loading แบบเคลียร์ความปลอดภัย
+      setLoadingState('clearing'); // เปิดหน้า Loading แบบเคลียร์ความปลอดภัย
       
       setTimeout(() => {
-        router.replace('/survey'); 
+        window.location.href = '/survey'; 
       }, 2000); 
       return; 
     }
@@ -78,18 +80,20 @@ function CheckpointRedirector() {
     }
 
     // 5. อัปเดต Session และทำการ Redirect
-    sessionStorage.setItem('secure_user_id', numericUserId.toString());
-    router.replace(`/captcha/${selectedRoute}?method=${method}`);
+    setTimeout(() => {
+      router.replace(`/captcha/${selectedRoute}?method=${method}`);
+    }, 2000);
     
   }, [router, searchParams]);
 
   // UI สำหรับจังหวะข้ามไป Survey
-  if (isClearing) {
+  if (loadingState === 'clearing') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-pulse flex flex-col items-center">
           <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-600 font-medium">Finalizing security clearance...</p>
+          <p className="text-gray-800 font-bold text-lg mb-2">Security Clearance Granted</p>
+          <p className="text-gray-500 text-sm">ตรวจสอบผ่าน กำลังพาท่านเข้าสู่ระบบอย่างปลอดภัย</p>
         </div>
       </div>
     );
@@ -99,8 +103,9 @@ function CheckpointRedirector() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="animate-pulse flex flex-col items-center">
-        <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-600 font-medium">Preparing Security Challenge...</p>
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-800 font-bold text-lg mb-2">Preparing Security Challenge...</p>
+        <p className="text-gray-500 text-sm">ระบบกำลังเตรียมด่านทดสอบความปลอดภัยที่เหมาะสม</p>
       </div>
     </div>
   );

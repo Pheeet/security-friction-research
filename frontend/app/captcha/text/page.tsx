@@ -11,6 +11,8 @@ function TextContent() {
   const [userId, setUserId] = useState<string | null>(null);
   const method = searchParams.get('method') || 'email';
 
+  const [isVerifying, setIsVerifying] = useState(false);
+
   useEffect(() => {
     const storedUserId = sessionStorage.getItem('secure_user_id');
     if (!storedUserId) {
@@ -27,8 +29,12 @@ function TextContent() {
     const require2FA = sessionStorage.getItem('require_2fa');
 
     if (require2FA === 'false') {
+      
       console.log('Adaptive Mode: Skipping 2FA -> Go to Survey');
-      router.replace('/survey');
+      setIsVerifying(true);
+      setTimeout(() => {
+        window.location.href = '/survey'; 
+      }, 2000);
       return;
     }
 
@@ -46,7 +52,10 @@ function TextContent() {
       const data = await res.json();
 
       if (data.success) {
-        router.replace(`/2fa/challenge?method=${method}&refCode=${data.ref_code}`);
+        setIsVerifying(true);
+        setTimeout(() => {
+          router.replace(`/2fa/challenge?method=${method}&refCode=${data.ref_code}`);
+        }, 1500);
       } else {
         alert("Failed to request 2FA: " + data.message);
       }
@@ -63,6 +72,18 @@ function TextContent() {
       </div>
     );
   }
+  if (isVerifying) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-gray-800 font-bold text-lg mb-2">Challenge Verified</p>
+          <p className="text-gray-500 text-sm">ตรวจสอบสำเร็จ กำลังพาท่านไปยังขั้นตอนถัดไป</p>
+        </div>
+      </div>
+    );
+  }
+  
 
   return (
     <CaptchaTest 
