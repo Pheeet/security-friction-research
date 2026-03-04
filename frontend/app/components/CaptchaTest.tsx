@@ -53,7 +53,7 @@ export default function CaptchaTest({ userId, type, title, onSuccess }: Props) {
    const durationTotal = Date.now() - absoluteStartTime.current;
 
     try {
-      const res = await axios.post(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api")}/verify`, {
+      const res = await axios.post(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")}/api/verify`, {
         userId: userId,
         captchaId: captchaId,
         captchaType: type,
