@@ -1,0 +1,61 @@
+services:
+
+  db:
+    image: postgres:18-alpine
+    container_name: nextjs-captcha-db
+    restart: always
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    ports:
+      - "${DB_PORT}:${DB_PORT}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # ตั้งชื่อ Service
+  backend-api:
+    # บอกว่าให้ Build จาก Dockerfile ที่อยู่ในโฟลเดอร์ backend
+    build: ./backend
+    # ตั้งชื่อ Container
+    container_name: go-captcha-backend
+    # Map Port
+    ports:
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
+    env_file:       
+      - .env
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_PORT=${DB_PORT}
+      - PORT=${BACKEND_PORT}
+      - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
+
+
+  frontend:
+    build: ./frontend
+    
+    container_name: nextjs-captcha-frontend
+
+    ports:
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+    
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=2048
+      - WATCHPACK_POLLING=true
+      - NEXT_PUBLIC_TURNSTILE_SITE_KEY=${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+    
+    depends_on:
+      - backend-api
+
+volumes:
+  postgres_data:

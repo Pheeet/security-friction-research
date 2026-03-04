@@ -1,0 +1,21 @@
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Environment Variables (กันพลาดหลุด)
+.env
+.env.local
+.env.production
+.env.development
+
+# Docker
+docker-data/
+postgres-data/
+
+
+*.log
