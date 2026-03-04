@@ -87,6 +87,7 @@ export default function SurveyPage() {
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   // อัปเดตคำตอบ Demographics
   const handleDemographicChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
@@ -142,17 +143,34 @@ export default function SurveyPage() {
         sessionStorage.removeItem('secure_user_id');
         sessionStorage.removeItem('captcha_type');
         sessionStorage.removeItem('require_2fa');
-        alert('บันทึกข้อมูลเรียบร้อย ขอบคุณที่ร่วมทดสอบครับ!');
-        router.push('/thank-you'); 
+
+        setIsSubmitting(false);
+        setIsSuccess(true);
+        setTimeout(() => {
+          router.push('/thank-you'); 
+        }, 2000);
       } else {
         throw new Error("Backend save failed");
       }
     } catch (error) {
-      alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
+      setIsSubmitting(false);
+      alert('เกิดข้อผิดพลาดในการส่งข้อมูล กรุณาลองใหม่อีกครั้ง');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (isSuccess) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="animate-pulse flex flex-col items-center">
+        <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-800 font-bold text-lg mb-2">Saving your responses...</p>
+        <p className="text-gray-500 text-sm">บันทึกข้อมูลสำเร็จ กำลังพาคุณไปยังหน้าสุดท้าย</p>
+      </div>
+    </div>
+  );
+}
 
   return (
     <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8 font-sans">
