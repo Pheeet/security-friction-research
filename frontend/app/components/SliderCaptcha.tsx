@@ -65,7 +65,7 @@ export default function SliderCaptcha({ userId, onSuccess }: Props) {
 
     try {
       const res = await axios.post(
-        `${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api")}/slider/verify`,
+        `${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")}/api/slider/verify`,
         {
           userId: userId,
           x: sliderValue, 
