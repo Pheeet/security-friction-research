@@ -1,3 +1,4 @@
+//app/2fa/challenge/page/tsx
 'use client';
 
 import { useState, useEffect, Suspense, useRef } from 'react';
@@ -23,6 +24,8 @@ function ChallengeContent() {
   const method = searchParams.get('method') || 'email';
   const [currentRefCode, setCurrentRefCode] = useState(initialRefCode);
   const [startTime, setStartTime] = useState<number>(0);
+
+  const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     const storedUserId = sessionStorage.getItem('secure_user_id');
@@ -94,12 +97,16 @@ function ChallengeContent() {
 
       if (data.success) {
         
-        
+        if (data.token) {
+          document.cookie = `auth_token=${data.token}; path=/; max-age=86400`;
+        }
+
         setLoading(false);
+        setIsVerifying(true);
         setIsSuccess(true);
         setTimeout(() => {
             router.push('/survey'); 
-        }, 1000);
+        }, 2000);
 
       } else {
        
@@ -211,6 +218,18 @@ function ChallengeContent() {
   };
 
   const greenThemeColor = '#059669'; 
+
+  if (isVerifying) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-gray-800 font-bold text-lg mb-2">Authentication Successful</p>
+          <p className="text-gray-500 text-sm">ยืนยันตัวตนสำเร็จ กำลังพาท่านไปยังแบบสอบถาม</p>
+        </div>
+      </div>
+    );
+}
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb' }}>

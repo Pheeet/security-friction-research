@@ -6,15 +6,22 @@ export async function POST() {
   // 1. เข้าถึง Cookies
   const cookieStore = await cookies();
 
-  // 2. สั่งลบ Cookie "auth_token" ซึ่งเป็นตัวหลักของระบบใหม่
-  cookieStore.delete('auth_token');
+  const cookiesToClear = [
+    'auth_token',
+    'experiment_mode',
+    'research_session_id',
+    'sso_start_time',
+    'is-logged-in',
+    'session'
+  ];
 
-  // 3. สั่งลบ Cookie ตัวเก่าๆ ทิ้งให้เกลี้ยง (Clean up)
-  cookieStore.delete('is-logged-in');
-  cookieStore.delete('research_session_id'); 
-  cookieStore.delete('session'); 
+  cookiesToClear.forEach(cookieName => {
+    cookieStore.delete(cookieName);
+  });
 
-  // 4. ส่ง Response กลับไปบอก Frontend ว่า "เคลียร์สิทธิ์เสร็จแล้วจ้า"
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ 
+    success: true,
+    message: "All sessions and cookies cleared" 
+  });
 }
 

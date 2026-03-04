@@ -1,3 +1,4 @@
+//app/thank-you/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -25,10 +26,20 @@ export default function ThankYouPage() {
       console.error("Logout failed:", error);
     }
 
+    sessionStorage.clear();
+
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i];
+        const eqPos = cookie.indexOf("=");
+        const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+    }
+
     if (destination === '/login') {
       // ฝังโหมด Adaptive แล้วส่งกลับไปหน้า Login
       sessionStorage.setItem('experiment_mode', 'adaptive');
-      document.cookie = "experiment_mode=adaptive; path=/";
+      document.cookie = "experiment_mode=adaptive; path=/; max-age=3600";
       router.push('/login');
     } else {
       // ถ้าระบุว่าไปหน้าอื่น (เช่น /welcome) ให้ล้างข้อมูลทั้งหมดทิ้ง
