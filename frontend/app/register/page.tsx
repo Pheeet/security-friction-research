@@ -1,10 +1,10 @@
-//app/register/page.tsx
 'use client';
 
-import { useState, useEffect, CSSProperties } from 'react';
+import { useState, useEffect, CSSProperties, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function RegisterPage() {
+// แยกส่วนที่มี useSearchParams ออกมาเป็น Component ย่อย
+function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -242,6 +242,195 @@ export default function RegisterPage() {
   );
 
   return (
+    <div style={{ backgroundColor: '#ffffff', padding: '3rem', borderRadius: '12px', width: '100%', maxWidth: '550px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
+      <h1 style={{ fontSize: '1.8rem', marginBottom: '1.5rem', fontWeight: 'bold', textAlign: 'center', color: '#111827' }}>
+        Create Account
+      </h1>
+
+      {isGoogleRegister && <p style={{ textAlign: 'center', color: '#10b981', marginBottom: '1rem' }}>Signing up with Google</p>}
+      
+      <form onSubmit={handleRegister} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        
+        {!isGoogleRegister && (
+          <div>
+            <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Full Name</label>
+            <input 
+              type="text" name="fullname" placeholder="John Doe"
+              value={formData.fullname} onChange={handleChange} onBlur={handleBlur}
+              style={inputStyle(!!errors.fullname, formData.fullname.trim().length > 0 && !errors.fullname)}
+            />
+            {errors.fullname && <p style={errorTextStyle}>{errors.fullname}</p>}
+          </div>
+        )}
+
+        {!isGoogleRegister && (
+          <div>
+            <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Email Address</label>
+            <input 
+              type="email" name="email" placeholder="john@example.com"
+              value={formData.email} onChange={handleChange} onBlur={handleBlur}
+              style={inputStyle(!!errors.email, formData.email.trim().length > 0 && !errors.email)}
+            />
+            {errors.email && <p style={errorTextStyle}>{errors.email}</p>}
+          </div>
+        )}
+
+        <div>
+          <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Username</label>
+          <input 
+            type="text" name="username" placeholder="Username"
+            value={formData.username} onChange={handleChange} onBlur={handleBlur}
+            style={inputStyle(!!errors.username, formData.username.trim().length > 0 && !errors.username)}
+          />
+          {errors.username && <p style={errorTextStyle}>{errors.username}</p>}
+        </div>
+        
+        <div>
+          <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>New Password</label>
+          <div style={{ position: 'relative' }}>
+            <input 
+              type={showPassword ? "text" : "password"} 
+              name="password" 
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleChange}
+              style={{
+                ...inputStyle(false, false, formData.password.length > 0 ? currentStrength.color : undefined),
+                paddingRight: '45px'
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
+                background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280'
+              }}
+            >
+              <EyeIcon isVisible={showPassword} />
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+             {[1, 2, 3, 4, 5].map((num) => (
+                <div 
+                  key={num} 
+                  style={{ 
+                    height: '4px', flex: 1, borderRadius: '2px', transition: 'background-color 0.3s ease',
+                    backgroundColor: num <= currentStrength.bars ? currentStrength.color : '#e5e7eb' 
+                  }} 
+                />
+             ))}
+          </div>
+
+          {formData.password.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '6px' }}>
+               <span style={{ fontSize: '0.75rem', fontWeight: 600, color: currentStrength.color }}>
+                 {currentStrength.label}
+               </span>
+               
+               <div className="group relative ml-2 flex items-center justify-center">
+                  <span style={{ 
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', 
+                    width: '14px', height: '14px', borderRadius: '50%', backgroundColor: '#6b7280', 
+                    color: 'white', fontSize: '10px', cursor: 'help', fontWeight: 'bold'
+                  }}>i</span>
+                  
+                  <div className="absolute bottom-full right-0 mb-2 hidden w-48 p-3 bg-gray-800 text-white text-xs rounded-lg shadow-lg group-hover:block z-10">
+                     <p className="font-semibold mb-1 text-gray-200">Missing Requirements:</p>
+                     {missingReqs.length > 0 ? (
+                        <ul style={{ paddingLeft: '16px', margin: 0, listStyleType: 'disc', lineHeight: '1.6' }}>
+                           {missingReqs.map((req, i) => <li key={i}>{req}</li>)}
+                        </ul>
+                     ) : (
+                        <span className="text-teal-400">Perfect! Password is very strong.</span>
+                     )}
+                  </div>
+               </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginTop: '-5px' }}>
+          <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Confirm Password</label>
+          <div style={{ position: 'relative' }}>
+            <input 
+              type={showConfirmPassword ? "text" : "password"} 
+              name="confirmPassword" 
+              placeholder="Confirm Password"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              style={{
+                ...inputStyle(!!errors.confirmPassword, formData.confirmPassword.length > 0 && !errors.confirmPassword),
+                paddingRight: '45px'
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              style={{
+                position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
+                background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280'
+              }}
+            >
+              <EyeIcon isVisible={showConfirmPassword} />
+            </button>
+          </div>
+          {errors.confirmPassword && <p style={errorTextStyle}>{errors.confirmPassword}</p>}
+        </div>
+
+        {/* 🔥 5. ปุ่มที่มีอนิเมชั่นขอบหมุน */}
+        <button 
+          type="submit" 
+          disabled={isButtonDisabled || isLoading || isSuccess} 
+          onMouseOver={() => setIsHovering(true)}
+          onMouseOut={() => setIsHovering(false)}
+          style={{ 
+            position: 'relative',
+            overflow: 'hidden',
+            padding: '14px', borderRadius: '6px', border: 'none', 
+            backgroundColor: isButtonDisabled ? '#9ca3af' : (isSuccess ? '#059669' : '#10b981'),
+            color: 'white', fontSize: '1.1rem', fontWeight: '600', 
+            cursor: isButtonDisabled || isLoading || isSuccess ? 'not-allowed' : 'pointer', 
+            marginTop: '1rem', 
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}
+        >
+          {isLoading && (
+            <>
+              <div style={{
+                position: 'absolute',
+                top: '50%', left: '50%',
+                width: '300%', height: '300%',
+                background: 'conic-gradient(transparent, rgba(255, 0, 0, 0.9), transparent 30%)',
+                transform: 'translate(-50%, -50%)',
+                animation: 'spin-border 3s linear infinite'
+              }} />
+              <div style={{
+                position: 'absolute',
+                inset: '3px',
+                backgroundColor: '#10b981', 
+                borderRadius: '4px'
+              }} />
+            </>
+          )}
+
+          <span style={{ position: 'relative', zIndex: 10, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {isLoading ? 'Registering...' : (isSuccess ? '✓ Sign up complete' : 'Register')}
+          </span>
+        </button>
+      </form>
+
+      <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem', color: '#6b7280' }}>
+        Already have an account? <a href="/login" style={{ color: '#10b981', textDecoration: 'none', fontWeight: '500' }}>Log in</a>
+      </div>
+    </div>
+  );
+}
+
+// หน้า Page หลักที่ Export ออกไปใช้งาน โดยมีการใช้ Suspense ครอบไว้
+export default function RegisterPage() {
+  return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb' }}>
       
       {/* 🔥 4. ฝัง Keyframe สำหรับหมุนเส้นขอบ */}
@@ -252,193 +441,9 @@ export default function RegisterPage() {
         }
       `}</style>
 
-      <div style={{ backgroundColor: '#ffffff', padding: '3rem', borderRadius: '12px', width: '100%', maxWidth: '550px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-        <h1 style={{ fontSize: '1.8rem', marginBottom: '1.5rem', fontWeight: 'bold', textAlign: 'center', color: '#111827' }}>
-          Create Account
-        </h1>
-
-        {isGoogleRegister && <p style={{ textAlign: 'center', color: '#10b981', marginBottom: '1rem' }}>Signing up with Google</p>}
-        
-        <form onSubmit={handleRegister} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          
-          {/* ... (Fullname, Email, Username ปกติ) ... */}
-          {!isGoogleRegister && (
-            <div>
-              <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Full Name</label>
-              <input 
-                type="text" name="fullname" placeholder="John Doe"
-                value={formData.fullname} onChange={handleChange} onBlur={handleBlur}
-                style={inputStyle(!!errors.fullname, formData.fullname.trim().length > 0 && !errors.fullname)}
-              />
-              {errors.fullname && <p style={errorTextStyle}>{errors.fullname}</p>}
-            </div>
-          )}
-
-          {!isGoogleRegister && (
-            <div>
-              <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Email Address</label>
-              <input 
-                type="email" name="email" placeholder="john@example.com"
-                value={formData.email} onChange={handleChange} onBlur={handleBlur}
-                style={inputStyle(!!errors.email, formData.email.trim().length > 0 && !errors.email)}
-              />
-              {errors.email && <p style={errorTextStyle}>{errors.email}</p>}
-            </div>
-          )}
-
-          <div>
-            <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Username</label>
-            <input 
-              type="text" name="username" placeholder="Username"
-              value={formData.username} onChange={handleChange} onBlur={handleBlur}
-              style={inputStyle(!!errors.username, formData.username.trim().length > 0 && !errors.username)}
-            />
-            {errors.username && <p style={errorTextStyle}>{errors.username}</p>}
-          </div>
-          
-          <div>
-            <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>New Password</label>
-            <div style={{ position: 'relative' }}>
-              <input 
-                type={showPassword ? "text" : "password"} 
-                name="password" 
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleChange}
-                style={{
-                  ...inputStyle(false, false, formData.password.length > 0 ? currentStrength.color : undefined),
-                  paddingRight: '45px'
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
-                  background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280'
-                }}
-              >
-                <EyeIcon isVisible={showPassword} />
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
-               {[1, 2, 3, 4, 5].map((num) => (
-                  <div 
-                    key={num} 
-                    style={{ 
-                      height: '4px', flex: 1, borderRadius: '2px', transition: 'background-color 0.3s ease',
-                      backgroundColor: num <= currentStrength.bars ? currentStrength.color : '#e5e7eb' 
-                    }} 
-                  />
-               ))}
-            </div>
-
-            {formData.password.length > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '6px' }}>
-                 <span style={{ fontSize: '0.75rem', fontWeight: 600, color: currentStrength.color }}>
-                   {currentStrength.label}
-                 </span>
-                 
-                 <div className="group relative ml-2 flex items-center justify-center">
-                    <span style={{ 
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', 
-                      width: '14px', height: '14px', borderRadius: '50%', backgroundColor: '#6b7280', 
-                      color: 'white', fontSize: '10px', cursor: 'help', fontWeight: 'bold'
-                    }}>i</span>
-                    
-                    <div className="absolute bottom-full right-0 mb-2 hidden w-48 p-3 bg-gray-800 text-white text-xs rounded-lg shadow-lg group-hover:block z-10">
-                       <p className="font-semibold mb-1 text-gray-200">Missing Requirements:</p>
-                       {missingReqs.length > 0 ? (
-                          <ul style={{ paddingLeft: '16px', margin: 0, listStyleType: 'disc', lineHeight: '1.6' }}>
-                             {missingReqs.map((req, i) => <li key={i}>{req}</li>)}
-                          </ul>
-                       ) : (
-                          <span className="text-teal-400">Perfect! Password is very strong.</span>
-                       )}
-                    </div>
-                 </div>
-              </div>
-            )}
-          </div>
-
-          <div style={{ marginTop: '-5px' }}>
-            <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#555'}}>Confirm Password</label>
-            <div style={{ position: 'relative' }}>
-              <input 
-                type={showConfirmPassword ? "text" : "password"} 
-                name="confirmPassword" 
-                placeholder="Confirm Password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                style={{
-                  ...inputStyle(!!errors.confirmPassword, formData.confirmPassword.length > 0 && !errors.confirmPassword),
-                  paddingRight: '45px'
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                style={{
-                  position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
-                  background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280'
-                }}
-              >
-                <EyeIcon isVisible={showConfirmPassword} />
-              </button>
-            </div>
-            {errors.confirmPassword && <p style={errorTextStyle}>{errors.confirmPassword}</p>}
-          </div>
-
-          {/* 🔥 5. ปุ่มที่มีอนิเมชั่นขอบหมุน */}
-          <button 
-            type="submit" 
-            disabled={isButtonDisabled || isLoading || isSuccess} 
-            onMouseOver={() => setIsHovering(true)}
-            onMouseOut={() => setIsHovering(false)}
-            style={{ 
-              position: 'relative',
-              overflow: 'hidden',
-              padding: '14px', borderRadius: '6px', border: 'none', 
-              backgroundColor: isButtonDisabled ? '#9ca3af' : (isSuccess ? '#059669' : '#10b981'),
-              color: 'white', fontSize: '1.1rem', fontWeight: '600', 
-              cursor: isButtonDisabled || isLoading || isSuccess ? 'not-allowed' : 'pointer', 
-              marginTop: '1rem', 
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}
-          >
-            {/* เลเยอร์ขอบหมุน (จะโชว์เฉพาะตอน isLoading) */}
-            {isLoading && (
-              <>
-                <div style={{
-                  position: 'absolute',
-                  top: '50%', left: '50%',
-                  width: '300%', height: '300%',
-                  background: 'conic-gradient(transparent, rgba(255, 0, 0, 0.9), transparent 30%)',
-                  transform: 'translate(-50%, -50%)',
-                  animation: 'spin-border 3s linear infinite'
-                }} />
-                {/* เลเยอร์บังตรงกลาง ให้เหลือแค่ขอบ */}
-                <div style={{
-                  position: 'absolute',
-                  inset: '3px',
-                  backgroundColor: '#10b981', // สีเขียวเดิม
-                  borderRadius: '4px'
-                }} />
-              </>
-            )}
-
-            {/* เลเยอร์ข้อความ */}
-            <span style={{ position: 'relative', zIndex: 10, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {isLoading ? 'Registering...' : (isSuccess ? '✓ Sign up complete' : 'Register')}
-            </span>
-          </button>
-        </form>
-
-        <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem', color: '#6b7280' }}>
-          Already have an account? <a href="/login" style={{ color: '#10b981', textDecoration: 'none', fontWeight: '500' }}>Log in</a>
-        </div>
-      </div>
+      <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>Loading form...</div>}>
+        <RegisterContent />
+      </Suspense>
     </div>
   );
 }
