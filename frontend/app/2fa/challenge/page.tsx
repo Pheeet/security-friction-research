@@ -74,7 +74,7 @@ function ChallengeContent() {
     const finalOtp = codeToVerify || otpValues.join('');
 
     if (finalOtp.length < 6) return;
-
+    if (loading || isSuccess) return;
     // เคลียร์ Error ก่อนเริ่มโหลด
     setOtpError('');
     setIsShaking(false);

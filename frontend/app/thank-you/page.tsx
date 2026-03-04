@@ -19,7 +19,7 @@ export default function ThankYouPage() {
   }, []);
 
   const handleLogoutAndRedirect = async (destination: string) => {
-
+    if (isRedirecting) return;
     setIsRedirecting(true);
 
     try {

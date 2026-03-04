@@ -97,7 +97,7 @@ export default function SurveyPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAllAnswered) {
+    if (!isAllAnswered || isSubmitting) {
       alert('กรุณาตอบคำถามให้ครบทุกข้อครับ');
       return;
     }
@@ -130,10 +130,12 @@ export default function SurveyPage() {
         // (ส่วน ID หรือ experiment_mode ปล่อยให้หน้า Thank You ไปจัดการต่อ)
         sessionStorage.removeItem('captcha_type');
         sessionStorage.removeItem('require_2fa');
-
+        setIsSuccess(true);
         // ไม่ว่าจะจบรอบ 1 หรือรอบ 2 ให้ส่งไปหน้า /thank-you เสมอ
         // เพราะโค้ดใน ThankYouPage.tsx ของคุณจะเช็ค experiment_mode และแยกหน้าให้เอง!
-        router.push('/thank-you'); 
+        setTimeout(() => {
+            router.push('/thank-you'); 
+        }, 2000);
 
       } else {
         throw new Error("Backend save failed");
@@ -236,7 +238,20 @@ export default function SurveyPage() {
           ))}
 
           <div className="flex justify-end pt-4 pb-12">
-            <button type="submit" disabled={!isAllAnswered || isSubmitting} className={`px-8 py-3 rounded-md text-white font-medium text-lg transition-colors shadow-sm ${(!isAllAnswered || isSubmitting) ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}>
+            <button 
+              type="submit" 
+             
+              disabled={!isAllAnswered || isSubmitting} 
+              className={`px-8 py-3 rounded-md text-white font-medium text-lg transition-all duration-300 shadow-sm flex items-center gap-3
+                ${(!isAllAnswered || isSubmitting) 
+                  ? 'bg-gray-300 opacity-60 cursor-not-allowed scale-95' 
+                  : 'bg-green-600 hover:bg-green-700 active:scale-95'   
+                }`}
+            >
+              {isSubmitting && (
+                
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              )}
               {isSubmitting ? 'กำลังส่งข้อมูล...' : 'ส่งคำตอบ'}
             </button>
           </div>
