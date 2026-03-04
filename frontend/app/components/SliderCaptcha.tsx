@@ -40,7 +40,7 @@ export default function SliderCaptcha({ userId, onSuccess }: Props) {
     setStatus(null);
     setSliderValue(0);
     try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/slider`, {
+      const res = await axios.get(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api")}/slider`, {
         withCredentials: true,
       });
       setBgImage(res.data.originalImage);
@@ -65,7 +65,7 @@ export default function SliderCaptcha({ userId, onSuccess }: Props) {
 
     try {
       const res = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/slider/verify`,
+        `${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api")}/slider/verify`,
         {
           userId: userId,
           x: sliderValue, 

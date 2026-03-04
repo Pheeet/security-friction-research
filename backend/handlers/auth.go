@@ -199,19 +199,17 @@ func LoginHandler(c *gin.Context) {
 		}
 
 		if riskLevel != "high" {
-			secret := os.Getenv("JWT_SECRET")
-			if secret == "" {
-				secret = "fallback-secret-for-dev"
-			}
+			secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 				"user_id": user.ID,
 				"exp":     time.Now().Add(time.Hour * 24).Unix(),
 			})
 			if tokenString, err := token.SignedString([]byte(secret)); err == nil {
-				generatedToken = tokenString
-				c.SetCookie("auth_token", tokenString, 3600*24, "/", os.Getenv("COOKIE_DOMAIN"), os.Getenv("ENV") == "production", true)
-			}
+		generatedToken = tokenString
+		c.SetCookie("auth_token", tokenString, 3600*24, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
 		}
+		}
+
 	}
 
 	// [RESEARCH LOGIC] สร้าง SessionID และเริ่มบันทึก Journey
@@ -301,10 +299,7 @@ func Verify2FAHandler(c *gin.Context) {
 		database.DB.Save(&user)
 
 		// 1. เตรียม Secret Key
-		secret := os.Getenv("JWT_SECRET")
-		if secret == "" {
-			secret = "fallback-secret-for-dev"
-		}
+		secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
 
 		// 2. สร้าง JWT Token อายุ 24 ชั่วโมง
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -321,7 +316,7 @@ func Verify2FAHandler(c *gin.Context) {
 		// 3. ตั้งค่า HttpOnly Cookie ระดับ Production
 		// พารามิเตอร์: name, value, maxAge(วินาที), path, domain, secure(HTTPS), httpOnly
 		// หมายเหตุ: secure ให้เป็น false ไปก่อนตอนทำบน localhost ถ้าขึ้นของจริงค่อยเปลี่ยนเป็น true
-		c.SetCookie("auth_token", tokenString, 3600*24, "/", os.Getenv("COOKIE_DOMAIN"), os.Getenv("ENV") == "production", true)
+		c.SetCookie("auth_token", tokenString, 3600*24, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,

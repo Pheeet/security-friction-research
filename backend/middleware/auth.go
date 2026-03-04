@@ -1,9 +1,9 @@
-//middleware/auth.go
+// middleware/auth.go
 package middleware
 
 import (
+	"backend-api/database"
 	"net/http"
-	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -21,10 +21,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		// 2. ดึง Secret Key จากไฟล์ .env (Production Standard)
-		secret := os.Getenv("JWT_SECRET")
-		if secret == "" {
-			secret = "fallback-secret-for-dev" // เผื่อลืมตั้งใน .env
-		}
+		secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
 
 		// 3. ตรวจสอบความถูกต้องและวันหมดอายุของ Token
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
@@ -36,7 +33,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		if err != nil || !token.Valid {
 			// ถ้า Token หมดอายุ หรือถูกปลอมแปลง ให้ล้างคุกกี้ทิ้งซะ
-			c.SetCookie("auth_token", "", -1, "/", os.Getenv("COOKIE_DOMAIN"), os.Getenv("ENV") == "production", true)
+			c.SetCookie("auth_token", "", -1, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid or expired token"})
 			c.Abort()
 			return

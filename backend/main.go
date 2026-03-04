@@ -3,7 +3,6 @@ package main
 
 import (
 	"log"
-	"os"
 	"runtime/debug"
 	"time"
 
@@ -33,10 +32,7 @@ func main() {
 
 	r := gin.Default()
 
-	frontendURL := os.Getenv("FRONTEND_URL")
-	if frontendURL == "" {
-		frontendURL = "http://localhost:3000"
-	}
+	frontendURL := database.GetEnv("FRONTEND_URL", "http://localhost:3000")
 
 	// 2. แก้ปัญหา CORS (ให้ Frontend ยิงเข้ามาได้)
 	config := cors.DefaultConfig()
@@ -93,9 +89,6 @@ func main() {
 	}
 
 	// รัน Server ที่ Port ตาม Env (Render requirement)
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+	port := database.GetEnv("PORT", "8080")
 	r.Run(":" + port)
 }

@@ -106,16 +106,13 @@ func VerifyTurnstile(c *gin.Context) {
 			go syncDataToGoogleSheets(journey)
 
 			if journey.RiskLevel == "medium" {
-				secret := os.Getenv("JWT_SECRET")
-				if secret == "" {
-					secret = "fallback-secret-for-dev"
-				}
+				secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
 				token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 					"user_id": uint(uid),
 					"exp":     time.Now().Add(time.Hour * 24).Unix(),
 				})
 				if tokenString, err := token.SignedString([]byte(secret)); err == nil {
-					c.SetCookie("auth_token", tokenString, 3600*24, "/", os.Getenv("COOKIE_DOMAIN"), os.Getenv("ENV") == "production", true)
+					c.SetCookie("auth_token", tokenString, 3600*24, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
 				}
 			}
 		}

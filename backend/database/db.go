@@ -71,16 +71,23 @@ type User struct {
 	IsPushApproved bool      `json:"-"` // สถานะว่ากด Push Approve หรือยัง
 }
 
+func GetEnv(key, fallback string) string {
+	if value, exists := os.LookupEnv(key); exists && value != "" {
+		return value
+	}
+	return fallback
+}
+
 func ConnectDB() {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
 		dsn = fmt.Sprintf(
 			"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Bangkok",
-			os.Getenv("DB_HOST"),
-			os.Getenv("DB_USER"),
-			os.Getenv("DB_PASSWORD"),
-			os.Getenv("DB_NAME"),
-			os.Getenv("DB_PORT"),
+			GetEnv("DB_HOST", "localhost"),
+			GetEnv("DB_USER", "postgres"),
+			GetEnv("DB_PASSWORD", "password"),
+			GetEnv("DB_NAME", "postgres"),
+			GetEnv("DB_PORT", "5432"),
 		)
 	}
 

@@ -10,7 +10,6 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -28,15 +27,12 @@ var googleOauthConfig *oauth2.Config
 
 // 1. ตั้งค่า Config (เรียกใช้ใน main.go)
 func InitGoogleAuth() {
-	backendURL := os.Getenv("BACKEND_URL")
-	if backendURL == "" {
-		backendURL = "http://localhost:8080"
-	}
+	backendURL := database.GetEnv("BACKEND_URL", "http://localhost:8080")
 	googleOauthConfig = &oauth2.Config{
 		RedirectURL: backendURL + "/api/auth/google/callback",
 		// --- ใส่ Client ID และ Secret ของคุณตรงนี้ ---
-		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
-		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+		ClientID:     database.GetEnv("GOOGLE_CLIENT_ID", ""),
+		ClientSecret: database.GetEnv("GOOGLE_CLIENT_SECRET", ""),
 		Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},
 		Endpoint:     google.Endpoint,
 	}
@@ -89,10 +85,7 @@ func GoogleCallback(c *gin.Context) {
 		// ตรวจสอบบรรทัดที่ Redirect ไปหน้า Register
 		encodedEmail := url.QueryEscape(googleUser.Email)
 		encodedName := url.QueryEscape(googleUser.Name)
-		frontendURL := os.Getenv("FRONTEND_URL")
-		if frontendURL == "" {
-			frontendURL = "http://localhost:3000"
-		}
+		frontendURL := database.GetEnv("FRONTEND_URL", "http://localhost:3000")
 		registerURL := fmt.Sprintf(
 			frontendURL+"/register?provider=google&email=%s&fullname=%s",
 			encodedEmail,
@@ -115,7 +108,7 @@ func GoogleCallback(c *gin.Context) {
 			timeLogin = time.Now().UnixMilli() - startTimeMs
 		}
 		// สั่งลบ Cookie ทิ้งเพื่อความสะอาด
-		c.SetCookie("sso_start_time", "", -1, "/", os.Getenv("COOKIE_DOMAIN"), os.Getenv("ENV") == "production", true)
+		c.SetCookie("sso_start_time", "", -1, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
 	}
 	experimentMode := "static"
 	modeCookie, err := c.Cookie("experiment_mode")
@@ -132,16 +125,13 @@ func GoogleCallback(c *gin.Context) {
 		captchaType = "none"
 		require2FA = "false"
 
-		secret := os.Getenv("JWT_SECRET")
-		if secret == "" {
-			secret = "fallback-secret-for-dev"
-		}
+		secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 			"user_id": user.ID,
 			"exp":     time.Now().Add(time.Hour * 24).Unix(),
 		})
 		if tokenString, err := token.SignedString([]byte(secret)); err == nil {
-			c.SetCookie("auth_token", tokenString, 3600*24, "/", os.Getenv("COOKIE_DOMAIN"), os.Getenv("ENV") == "production", true)
+			c.SetCookie("auth_token", tokenString, 3600*24, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
 		}
 	}
 
@@ -166,10 +156,7 @@ func GoogleCallback(c *gin.Context) {
 	user.TwoFAExpiry = time.Time{}
 	database.DB.Save(&user)
 
-	frontendURL := os.Getenv("FRONTEND_URL")
-	if frontendURL == "" {
-		frontendURL = "http://localhost:3000"
-	}
+	frontendURL := database.GetEnv("FRONTEND_URL", "http://localhost:3000")
 	checkpointURL := fmt.Sprintf(
 		frontendURL+"/security-checkpoint?userId=%d&method=email&mode=%s&risk=%s&captcha=%s&req2fa=%s",
 		user.ID, experimentMode, riskLevel, captchaType, require2FA,
@@ -224,10 +211,7 @@ func RequestOTPHandler(c *gin.Context) {
 		user.TwoFACode = ""
 		user.TwoFAExpiry = time.Now().Add(5 * time.Minute)
 
-		backendURL := os.Getenv("BACKEND_URL")
-		if backendURL == "" {
-			backendURL = "http://localhost:8080"
-		}
+		backendURL := database.GetEnv("BACKEND_URL", "http://localhost:8080")
 		link := fmt.Sprintf(backendURL+"/api/2fa/simulate-push-approve?user_id=%d", user.ID)
 		fmt.Printf("\n--- [PUSH NOTI MOCK] ---\nApprove Link: %s\n----------------------\n", link)
 	}
