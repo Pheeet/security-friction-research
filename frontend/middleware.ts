@@ -14,6 +14,7 @@ export function middleware(request: NextRequest){
                          path === '/security-checkpoint' ||
                          path.startsWith('/captcha') || 
                          path.startsWith('/2fa');
+                         
     const isGuestOnlyPath = path === '/login' || path === '/register';
 
     const isProtectedPath = path === '/survey' || path === '/thank-you';
@@ -24,13 +25,6 @@ export function middleware(request: NextRequest){
     //                      path.startsWith('/captcha') || 
     //                      path.startsWith('/2fa');
 
-    
-
-    // const isPublicPath = path === '/login' || 
-    //                      path === '/register' || 
-    //                      path === '/security-checkpoint' ||
-    //                      path.startsWith('/captcha') || 
-    //                      path.startsWith('/2fa');
 
     if (isLoggedIn && isGuestOnlyPath) {
       return NextResponse.redirect(new URL('/survey', request.url));

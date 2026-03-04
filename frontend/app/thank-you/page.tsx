@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 export default function ThankYouPage() {
   const router = useRouter()
   const [isAdaptiveMode, setIsAdaptiveMode] = useState(false);
-
+  const [isRedirecting, setIsRedirecting] = useState(false);
   useEffect(() => {
     const currentMode = sessionStorage.getItem('experiment_mode') || 'static';
 
@@ -19,6 +19,9 @@ export default function ThankYouPage() {
   }, []);
 
   const handleLogoutAndRedirect = async (destination: string) => {
+
+    setIsRedirecting(true);
+
     try {
       // ยิงไปที่ Next.js API Route ของคุณเพื่อเคลียร์ Cookies ให้เกลี้ยง!
       await fetch('/api/logout', { method: 'POST' });
@@ -40,14 +43,25 @@ export default function ThankYouPage() {
       // ฝังโหมด Adaptive แล้วส่งกลับไปหน้า Login
       sessionStorage.setItem('experiment_mode', 'adaptive');
       document.cookie = "experiment_mode=adaptive; path=/; max-age=3600";
-      router.push('/login');
+      setTimeout(() => {
+        router.push('/login');
+      }, 1500);
     } else {
-      // ถ้าระบุว่าไปหน้าอื่น (เช่น /welcome) ให้ล้างข้อมูลทั้งหมดทิ้ง
-      sessionStorage.clear();
-      document.cookie = "experiment_mode=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
       window.location.href = destination;
     }
   }
+
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-gray-800 font-bold text-lg mb-2">Switching to Adaptive Mode...</p>
+          <p className="text-gray-500 text-sm">กำลังสลับเข้าสู่โหมดปรับตัวอัตโนมัติ</p>
+        </div>
+      </div>
+    );
+}
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 font-sans text-center">
