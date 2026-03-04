@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
+// 🔥 แก้ตรงนี้ครับ: เปลี่ยนจาก middleware เป็น proxy
+export function proxy(request: NextRequest) {
   try {
     const path = request.nextUrl.pathname;
     const isLoggedIn = request.cookies.has('auth_token');
@@ -23,13 +24,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
     
   } catch (error) {
-    // ดัก Error ขั้นสุดยอด ถ้าพังก็ปล่อยผ่านไปเลย เว็บจะได้ไม่ล่ม
     console.error("Proxy Error:", error);
     return NextResponse.next();
   }
 }
 
-// 🔥 ท่าไม้ตาย: เลิกใช้ Regex ดักทุกหน้า เปลี่ยนมาระบุ Path ตรงๆ ที่เราต้องการป้องกัน
 export const config = {
   matcher: [
     '/login',
