@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 export default function ThankYouPage() {
   const router = useRouter()
   const [isAdaptiveMode, setIsAdaptiveMode] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [redirectTarget, setRedirectTarget] = useState<string | null>(null);
   useEffect(() => {
     const currentMode = sessionStorage.getItem('experiment_mode') || 'static';
 
@@ -19,8 +19,8 @@ export default function ThankYouPage() {
   }, []);
 
   const handleLogoutAndRedirect = async (destination: string) => {
-    if (isRedirecting) return;
-    setIsRedirecting(true);
+    if (redirectTarget) return;
+    setRedirectTarget(destination);
 
     try {
       // ยิงไปที่ Next.js API Route ของคุณเพื่อเคลียร์ Cookies ให้เกลี้ยง!
@@ -47,21 +47,34 @@ export default function ThankYouPage() {
         router.push('/login');
       }, 1500);
     } else {
-      window.location.href = destination;
+      setTimeout(() => {
+        window.location.href = destination;
+      }, 1000);
     }
   }
 
-  if (isRedirecting) {
+  if (redirectTarget) {
+    const isGoingToAdaptive = redirectTarget === '/login';
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-pulse flex flex-col items-center">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-800 font-bold text-lg mb-2">Switching to Adaptive Mode...</p>
-          <p className="text-gray-500 text-sm">กำลังสลับเข้าสู่โหมดปรับตัวอัตโนมัติ</p>
+          {/* เปลี่ยนสีวงกลมตามโหมด */}
+          <div className={`w-12 h-12 border-4 border-t-transparent rounded-full animate-spin mb-4 
+            ${isGoingToAdaptive ? 'border-blue-600' : 'border-gray-600'}`}>
+          </div>
+          
+          {/* เปลี่ยนข้อความตามโหมด */}
+          <p className="text-gray-800 font-bold text-lg mb-2">
+            {isGoingToAdaptive ? 'Switching to Adaptive Mode...' : 'Returning to Home...'}
+          </p>
+          <p className="text-gray-500 text-sm">
+            {isGoingToAdaptive ? 'กำลังสลับเข้าสู่โหมดปรับตัวอัตโนมัติ' : 'กำลังเคลียร์ข้อมูลและพาคุณกลับสู่หน้าหลัก'}
+          </p>
         </div>
       </div>
     );
-}
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 font-sans text-center">

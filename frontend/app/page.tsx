@@ -1,11 +1,13 @@
+//app/page.tsx
 'use client';
 
-import { useEffect } from 'react';
+import { useState,useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function WelcomePage() {
   const router = useRouter();
 
+  const [isStarting, setIsStarting] = useState(false);
   useEffect(() => {
     sessionStorage.clear();
     document.cookie = "experiment_mode=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
@@ -13,11 +15,29 @@ export default function WelcomePage() {
   }, []);
 
   const handleStartTest = () => {
+    if (isStarting) return;
+    
+    setIsStarting(true);
     sessionStorage.setItem('experiment_mode', 'static');
     document.cookie = "experiment_mode=static; path=/";
-    router.push('/login');
+    
+    setTimeout(() => {
+      router.push('/login');
+    }, 1500);
   };
 
+  if (isStarting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-gray-800 font-bold text-lg mb-2">Preparing Environment...</p>
+          <p className="text-gray-500 text-sm">กำลังเตรียมระบบและพาคุณเข้าสู่หน้าล็อกอิน</p>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 font-sans text-center">
       {/* 👇 เปลี่ยนจาก max-w-xl เป็น max-w-2xl ตรงนี้ครับ 👇 */}
