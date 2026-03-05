@@ -99,6 +99,9 @@ function ChallengeContent() {
         
         if (data.token) {
           document.cookie = `auth_token=${data.token}; path=/; max-age=86400`;
+          
+          // ⭐ เพิ่มบรรทัดนี้เข้าไปครับ เพื่อให้หน้า Survey ดึงไปใช้ต่อได้!
+          sessionStorage.setItem('token', data.token); 
         }
 
         setLoading(false);
