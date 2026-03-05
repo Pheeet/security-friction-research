@@ -20,3 +20,15 @@ postgres-data/
 
 *.log
 node_modules/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# build executables
+/backend-api
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
