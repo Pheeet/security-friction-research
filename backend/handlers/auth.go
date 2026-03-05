@@ -45,6 +45,7 @@ func isPasswordStrong(pass string) bool {
 
 // ฟังก์ชันช่วยส่งอีเมล (ใช้ Brevo API)
 func sendEmailOTP(to string, otp string, refCode string) error {
+	
 	apiKey := os.Getenv("BREVO_API_KEY")
 	senderEmail := os.Getenv("SENDER_EMAIL") // อีเมล Gmail ของคุณที่ยืนยันใน Brevo แล้ว
 

@@ -93,18 +93,26 @@ func ConnectDB() {
 
 	var err error
 
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	for i := 1; i <= 5; i++ {
+		DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err == nil {
+			break // ถ้าต่อสำเร็จแล้ว ให้หลุดออกจากลูปทันที
+		}
+		log.Printf("⏳ Database not ready (Attempt %d/5)... retrying in 2 seconds", i)
+		time.Sleep(2 * time.Second)
+	}
 
+	// ถ้าพยายามครบ 5 รอบแล้วยังไม่ได้ ค่อยยอมแพ้
 	if err != nil {
-		log.Fatal("Failed to connect to database: ", err)
+		log.Fatal("❌ Failed to connect to database after 5 attempts: ", err)
 	}
 
 	// Configure Connection Pool for Free Tier (Neon DB)
 	sqlDB, err := DB.DB()
 	if err == nil {
-		sqlDB.SetMaxOpenConns(10)                // Limit total connections
-		sqlDB.SetMaxIdleConns(5)                 // Limit idle connections
-		sqlDB.SetConnMaxLifetime(time.Hour)      // Recycle connections
+		sqlDB.SetMaxOpenConns(10)           // Limit total connections
+		sqlDB.SetMaxIdleConns(5)            // Limit idle connections
+		sqlDB.SetConnMaxLifetime(time.Hour) // Recycle connections
 		sqlDB.SetConnMaxIdleTime(15 * time.Minute)
 	}
 

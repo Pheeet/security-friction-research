@@ -26,6 +26,9 @@ services:
       - .env
     depends_on:
       - db
+
+    volumes:
+      - ./backend:/app
     environment:
       - DB_HOST=db
       - DB_USER=${DB_USER}
@@ -50,7 +53,7 @@ services:
       - /app/.next
 
     environment:
-      - NODE_OPTIONS=--max-old-space-size=2048
+      - NODE_OPTIONS=--max-old-space-size=2048 --dns-result-order=ipv4first
       - WATCHPACK_POLLING=true
       - NEXT_PUBLIC_TURNSTILE_SITE_KEY=${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
     
