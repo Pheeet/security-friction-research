@@ -45,7 +45,17 @@ func isPasswordStrong(pass string) bool {
 
 // ฟังก์ชันช่วยส่งอีเมล (ใช้ Brevo API)
 func sendEmailOTP(to string, otp string, refCode string) error {
-	
+	env := os.Getenv("ENV")
+	if env == "development" || env == "" {
+		// ถ้าเป็น Local ให้ปริ้นท์ลง Terminal สวยๆ แล้วจบการทำงานเลย (ไม่ต้องเรียก Brevo)
+		fmt.Printf("\n=========================================\n")
+		fmt.Printf("📬 [LOCAL DEV MODE] จำลองการส่งอีเมล\n")
+		fmt.Printf("ผู้รับ: %s\n", to)
+		fmt.Printf("รหัส OTP: %s\n", otp)
+		fmt.Printf("รหัสอ้างอิง: %s\n", refCode)
+		fmt.Printf("=========================================\n\n")
+		return nil
+	}
 	apiKey := os.Getenv("BREVO_API_KEY")
 	senderEmail := os.Getenv("SENDER_EMAIL") // อีเมล Gmail ของคุณที่ยืนยันใน Brevo แล้ว
 

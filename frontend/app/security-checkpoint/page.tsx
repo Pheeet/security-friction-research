@@ -4,17 +4,28 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+const CheckpointLoadingUI = ({ message = "Preparing Security Challenge...", subMessage = "ระบบกำลังเตรียมด่านทดสอบความปลอดภัยที่เหมาะสม", color = "blue-600" }) => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="animate-pulse flex flex-col items-center text-center px-4">
+      <div className={`w-12 h-12 border-4 border-${color} border-t-transparent rounded-full animate-spin mb-4`}></div>
+      <p className="text-gray-800 font-bold text-lg mb-2">{message}</p>
+      <p className="text-gray-500 text-sm">{subMessage}</p>
+    </div>
+  </div>
+);
+
 function CheckpointRedirector() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const urlToken = searchParams.get('token');
-  if (urlToken) {
-    sessionStorage.setItem('token', urlToken);
-  }
+  
 
   const [loadingState, setLoadingState] = useState<'preparing' | 'clearing'>('preparing');
-
+  const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
+    const urlToken = searchParams.get('token');
+    if (urlToken) {
+      sessionStorage.setItem('token', urlToken);
+    }
     // 1. ดึงค่าที่ส่งมาจากหน้า Login หรือ Google SSO
     const userId = searchParams.get('userId');
     const method = searchParams.get('method') || 'email';
@@ -89,35 +100,27 @@ function CheckpointRedirector() {
     }, 2000);
     
   }, [router, searchParams]);
-
+  if (!isMounted) {
+    return <CheckpointLoadingUI />;
+  }
   // UI สำหรับจังหวะข้ามไป Survey
   if (loadingState === 'clearing') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-800 font-bold text-lg mb-2">Security Clearance Granted</p>
-          <p className="text-gray-500 text-sm">ตรวจสอบผ่าน กำลังพาท่านเข้าสู่ระบบอย่างปลอดภัย</p>
-        </div>
-      </div>
+      <CheckpointLoadingUI 
+        message="Security Clearance Granted" 
+        subMessage="ตรวจสอบผ่าน กำลังพาท่านเข้าสู่ระบบอย่างปลอดภัย" 
+        color="emerald-500" 
+      />
     );
   }
 
-  // UI ค่าเริ่มต้นสำหรับจังหวะกำลังโหลดข้อมูล
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="animate-pulse flex flex-col items-center">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-800 font-bold text-lg mb-2">Preparing Security Challenge...</p>
-        <p className="text-gray-500 text-sm">ระบบกำลังเตรียมด่านทดสอบความปลอดภัยที่เหมาะสม</p>
-      </div>
-    </div>
-  );
+  // UI ค่าเริ่มต้น (สีน้ำเงิน)
+  return <CheckpointLoadingUI />;
 }
 
 export default function SecurityCheckpointPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<CheckpointLoadingUI />}>
       <CheckpointRedirector />
     </Suspense>
   );
