@@ -135,6 +135,7 @@ export default function LoginPage() {
 
             if (data.token) {
               document.cookie = `auth_token=${data.token}; path=/; max-age=86400`;
+              sessionStorage.setItem('token', data.token); // 👈 เพิ่มบรรทัดนี้เข้าไปครับ!
             }
 
             document.cookie = `experiment_mode=${experimentMode}; path=/; max-age=86400`;

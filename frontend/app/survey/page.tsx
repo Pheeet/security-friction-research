@@ -114,12 +114,20 @@ export default function SurveyPage() {
 
     const userId = sessionStorage.getItem('secure_user_id') || '';
     const currentMode = sessionStorage.getItem('experiment_mode') || 'static';
+    
+    // ⭐ 1. ดึง Token ออกมาจาก Storage (เช็คด้วยว่าตอน Login คุณเก็บไว้ที่ local หรือ session)
+    // สมมติว่าเก็บไว้ใน localStorage ชื่อ 'token' นะครับ
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token'); 
 
     try {
       const res = await fetch(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")}/api/research/survey`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+          // ⭐ 2. แนบ Token ไปใน Header ตรงๆ เลย เบราว์เซอร์จะไม่บล็อก
+          'Authorization': `Bearer ${token}` 
+        },
+        // ⭐ 3. เอา credentials: 'include' ออกไปเลยครับ ไม่ต้องพึ่ง Cookie แล้ว
         body: JSON.stringify({
           userId: userId,
           testPhase: currentMode,
@@ -134,8 +142,6 @@ export default function SurveyPage() {
         sessionStorage.removeItem('captcha_type');
         sessionStorage.removeItem('require_2fa');
         
-        // ไม่ว่าจะจบรอบ 1 หรือรอบ 2 ให้ส่งไปหน้า /thank-you เสมอ
-        // เพราะโค้ดใน ThankYouPage.tsx ของคุณจะเช็ค experiment_mode และแยกหน้าให้เอง!
         setTimeout(() => {
             router.push('/thank-you'); 
         }, 2000);
@@ -147,7 +153,6 @@ export default function SurveyPage() {
       setIsSubmitting(false);
       alert('เกิดข้อผิดพลาดในการส่งข้อมูล กรุณาลองใหม่อีกครั้ง');
     } 
-    // หมายเหตุ: เอา finally ออก เพราะถ้าโหลดสำเร็จ (res.ok) เราอยากค้าง state isSuccess เอาไว้
   };
 
   // ⭐ 3. หน้าจอตอนที่กำลังโหลดเช็คโหมด (เพื่อแก้ปัญหา UI กระพริบ)
