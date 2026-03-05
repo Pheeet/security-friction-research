@@ -11,14 +11,11 @@ export default function Navbar() {
   
   // 🚫 2. โฟลเดอร์หน้าที่ต้องการซ่อนทั้งหมด (Prefix Match)
   // (เช่น ถ้ามี /2fa/challenge, /2fa/email ก็จะถูกซ่อนทั้งหมด)
-  const prefixHiddenPaths = ['/2fa', '/captcha'];
 
   // ตรวจสอบเงื่อนไขว่าตรงกับข้อ 1 หรือข้อ 2 ไหม
   const isExactHidden = exactHiddenPaths.includes(pathname);
-  const isPrefixHidden = prefixHiddenPaths.some((path) => pathname.startsWith(path));
-
   // ถ้าตรงเงื่อนไขข้อใดข้อหนึ่ง ให้ซ่อน Navbar (return null)
-  if (isExactHidden || isPrefixHidden) {
+  if (isExactHidden) {
     return null; 
   }
 
