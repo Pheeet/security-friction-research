@@ -207,9 +207,9 @@ func VerifySliderAnswer(sessionID string, userAnswer int) bool {
 
 	maxMovableBackend := float64(BoxWidth - PuzzleWidth)
 	correctPercentage := (float64(correctX) / maxMovableBackend) * 100.0
-	userPercentage := float64(userAnswer)
+	// userPercentage := float64(userAnswer)
+	userPercentage := (float64(userAnswer) / maxMovableBackend) * 100.0
 
-	
 	diff := correctPercentage - userPercentage
 	if diff < 0 {
 		diff = -diff
