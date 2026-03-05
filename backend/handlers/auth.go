@@ -3,12 +3,13 @@ package handlers
 
 import (
 	"backend-api/database"
-	"crypto/tls"
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 	"unicode"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-	"gopkg.in/gomail.v2"
 )
 
 // ฟังก์ชันตรวจสอบความแข็งแกร่งรหัสผ่าน
@@ -45,47 +45,68 @@ func isPasswordStrong(pass string) bool {
 
 // ฟังก์ชันช่วยส่งอีเมล
 func sendEmailOTP(to string, otp string, refCode string) error {
-	host := os.Getenv("SMTP_HOST")     // ต้องเป็น: smtp.gmail.com
-	portStr := os.Getenv("SMTP_PORT")  // ต้องเป็น: 587
-	user := os.Getenv("SMTP_USER")     // อีเมล Gmail ของคุณ
-	pass := os.Getenv("SMTP_PASSWORD") // App Password 16 หลัก (ไม่ใช่รหัสผ่านอีเมลปกติ)
+	apiKey := os.Getenv("BREVO_API_KEY")
+	senderEmail := os.Getenv("SENDER_EMAIL") // อีเมล Gmail ของคุณที่ยืนยันใน Brevo แล้ว
 
-	port, err := strconv.Atoi(portStr)
+	if apiKey == "" || senderEmail == "" {
+		return fmt.Errorf("BREVO_API_KEY or SENDER_EMAIL is not set")
+	}
+
+	// โครงสร้าง JSON ของ Brevo API
+	type Sender struct {
+		Name  string `json:"name"`
+		Email string `json:"email"`
+	}
+	type Recipient struct {
+		Email string `json:"email"`
+	}
+	type BrevoRequest struct {
+		Sender      Sender      `json:"sender"`
+		To          []Recipient `json:"to"`
+		Subject     string      `json:"subject"`
+		HtmlContent string      `json:"htmlContent"`
+	}
+
+	payload := BrevoRequest{
+		Sender:  Sender{Name: "Security App", Email: senderEmail},
+		To:      []Recipient{{Email: to}},
+		Subject: fmt.Sprintf("Security Code: %s - Ref: %s", otp, refCode),
+		HtmlContent: fmt.Sprintf(`
+            <h2>Your OTP Code</h2>
+            <h1>%s</h1>
+            <p>Reference Code: %s</p>
+        `, otp, refCode),
+	}
+
+	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		port = 587 // บังคับ fallback เป็น 587 เผื่อลืมตั้งค่า
-	}
-
-	m := gomail.NewMessage()
-	m.SetHeader("From", user)
-	m.SetHeader("To", to)
-	m.SetHeader("Subject", fmt.Sprintf("Security Code: %s - Ref: %s", otp, refCode))
-
-	body := fmt.Sprintf(`
-        <h2>Your OTP Code</h2>
-        <h1>%s</h1>
-        <p>Reference Code: %s</p>
-    `, otp, refCode)
-
-	m.SetBody("text/html", body)
-
-	d := gomail.NewDialer(host, port, user, pass)
-
-	// สำคัญมาก! เซิร์ฟเวอร์บน Render บางทีมีปัญหาเรื่อง Certificate
-	// บรรทัดนี้จะช่วยให้การส่งผ่าน TLS ราบรื่นขึ้นและไม่ติด Timeout
-	d.TLSConfig = &tls.Config{InsecureSkipVerify: true}
-
-	errChan := make(chan error, 1)
-	go func() {
-		errChan <- d.DialAndSend(m)
-	}()
-
-	select {
-	case err := <-errChan:
 		return err
-	// ขยายเวลา Timeout เป็น 30 วินาที ให้เวลาเซิร์ฟเวอร์ฟรีหายใจหน่อย
-	case <-time.After(30 * time.Second):
-		return fmt.Errorf("email sending timed out after 30 seconds")
 	}
+
+	// ยิง API ไปที่ Brevo (พอร์ต 443 ทะลุ Render แน่นอน)
+	req, err := http.NewRequest("POST", "https://api.brevo.com/v3/smtp/email", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("accept", "application/json")
+	req.Header.Set("api-key", apiKey)
+	req.Header.Set("content-type", "application/json")
+
+	client := &http.Client{Timeout: 15 * time.Second} // ตั้ง Timeout เผื่อไว้
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		// อ่าน Error เผื่อว่ามีอะไรผิดพลาด จะได้รู้สาเหตุ
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to send email via Brevo, status: %d, response: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	return nil
 }
 
 // 1. สำหรับ Login (ใช้แค่ User/Pass)
