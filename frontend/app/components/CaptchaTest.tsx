@@ -27,6 +27,8 @@ export default function CaptchaTest({ userId, type, title, onSuccess }: Props) {
 
   const [isError, setIsError] = useState(false);
 
+  const hasFetched = useRef(false);
+
   const fetchCaptcha = async () => {
     try {
       setLoading(true);
@@ -96,8 +98,11 @@ export default function CaptchaTest({ userId, type, title, onSuccess }: Props) {
 
   useEffect(() => {
     // 🔥 6. เริ่มจับเวลา "ครั้งแรกและครั้งเดียว" ทันทีที่โหลด Component นี้ขึ้นมา
-    absoluteStartTime.current = Date.now();
-    fetchCaptcha();
+    if (!hasFetched.current) {
+      absoluteStartTime.current = Date.now(); // เริ่มจับเวลาตั้งแต่วินาทีแรกที่หน้าเว็บโหลด
+      fetchCaptcha();
+      hasFetched.current = true;
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (

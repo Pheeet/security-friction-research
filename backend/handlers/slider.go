@@ -206,7 +206,7 @@ func VerifySliderAnswer(sessionID string, userAnswer int) bool {
 	delete(sliderAnswers, sessionID) // ลบทิ้งทันทีหลังตรวจ
 
 	maxMovableBackend := float64(BoxWidth - PuzzleWidth)
-	correctPercentage := (float64(correctX) / maxMovableBackend) * 100
+	correctPercentage := (float64(correctX) / maxMovableBackend) * 100.0
 	userPercentage := float64(userAnswer)
 
 	
@@ -215,7 +215,8 @@ func VerifySliderAnswer(sessionID string, userAnswer int) bool {
 		diff = -diff
 	}
 
-	return diff <= 5.0
+	// 🛡️ REFACTOR: Increased tolerance to 7% for mobile and screen scaling
+	return diff <= 7.0
 }
 
 type SliderVerifyRequest struct {

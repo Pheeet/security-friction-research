@@ -27,8 +27,8 @@ services:
     depends_on:
       - db
 
-    # volumes:
-    #   - ./backend:/app
+    volumes:
+      - ./backend:/app
     environment:
       - DB_HOST=db
       - DB_USER=${DB_USER}
