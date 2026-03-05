@@ -205,12 +205,17 @@ func VerifySliderAnswer(sessionID string, userAnswer int) bool {
 	}
 	delete(sliderAnswers, sessionID) // ลบทิ้งทันทีหลังตรวจ
 
-	// Tolerance +/- 5 pixels
-	diff := correctX - userAnswer
+	maxMovableBackend := float64(BoxWidth - PuzzleWidth)
+	correctPercentage := (float64(correctX) / maxMovableBackend) * 100
+	userPercentage := float64(userAnswer)
+
+	
+	diff := correctPercentage - userPercentage
 	if diff < 0 {
 		diff = -diff
 	}
-	return diff <= 12
+
+	return diff <= 5.0
 }
 
 type SliderVerifyRequest struct {

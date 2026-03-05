@@ -33,14 +33,11 @@ export default function SliderCaptcha({ userId, onSuccess }: Props) {
 
   useEffect(() => {
     if (!hasFetched.current) {
+      
+      absoluteStartTime.current = Date.now(); 
       fetchCaptcha();
       hasFetched.current = true;
     }
-  }, []);
-  
-  useEffect(() => {
-    absoluteStartTime.current = Date.now();
-    fetchCaptcha();
   }, []);
 
   const fetchCaptcha = async () => {
@@ -70,13 +67,16 @@ export default function SliderCaptcha({ userId, onSuccess }: Props) {
     if (isLoading) return;
 
     const durationTotal = Date.now() - absoluteStartTime.current;
+    const maxMovableFrontend = captchaWidth - 70;
+
+    const userPercent = (sliderValue / maxMovableFrontend) * 100;
 
     try {
       const res = await axios.post(
         `${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")}/api/slider/verify`,
         {
           userId: userId,
-          x: sliderValue, 
+          x: Math.round(userPercent), 
           timeTaken: durationTotal, // ส่งมิลลิวินาทีให้ Backend ตามเดิม
         },
         { withCredentials: true }
