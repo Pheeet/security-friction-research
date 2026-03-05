@@ -29,6 +29,14 @@ export default function SliderCaptcha({ userId, onSuccess }: Props) {
 
   const router = useRouter();
 
+  const hasFetched = useRef(false);
+
+  useEffect(() => {
+    if (!hasFetched.current) {
+      fetchCaptcha();
+      hasFetched.current = true;
+    }
+  }, []);
   
   useEffect(() => {
     absoluteStartTime.current = Date.now();

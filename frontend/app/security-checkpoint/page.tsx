@@ -1,7 +1,7 @@
 //app/security-checkpoint/page.tsx
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 const CheckpointLoadingUI = ({ message = "Preparing Security Challenge...", subMessage = "ระบบกำลังเตรียมด่านทดสอบความปลอดภัยที่เหมาะสม", color = "blue-600" }) => (
@@ -17,11 +17,14 @@ const CheckpointLoadingUI = ({ message = "Preparing Security Challenge...", subM
 function CheckpointRedirector() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+  const hasRedirected = useRef(false);
 
   const [loadingState, setLoadingState] = useState<'preparing' | 'clearing'>('preparing');
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
+    setIsMounted(true);
+    if (hasRedirected.current) return;
+
     const urlToken = searchParams.get('token');
     if (urlToken) {
       sessionStorage.setItem('token', urlToken);
@@ -94,12 +97,15 @@ function CheckpointRedirector() {
       localStorage.setItem(attemptKey, (currentAttempt + 1).toString());
     }
 
+    hasRedirected.current = true;
+
     // 5. อัปเดต Session และทำการ Redirect
     setTimeout(() => {
       router.replace(`/captcha/${selectedRoute}?method=${method}`);
     }, 2000);
     
   }, [router, searchParams]);
+
   if (!isMounted) {
     return <CheckpointLoadingUI />;
   }
