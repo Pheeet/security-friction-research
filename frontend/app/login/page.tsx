@@ -169,8 +169,13 @@ export default function LoginPage() {
     document.cookie = `sso_start_time=${absoluteStartTime.current}; path=/; max-age=3600`;
     setIsAnalyzing(true);
     setTimeout(() => {
+<<<<<<< HEAD
       window.location.href = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}/api/auth/google/login`;
       }, 1500);
+=======
+      window.location.href = `${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api")}/auth/google/login`;
+    }, 1500);
+>>>>>>> 3bf2fe22e10197fba8ce98e5ce13573e60e48c11
   };
 
   const greenThemeColor = '#059669';

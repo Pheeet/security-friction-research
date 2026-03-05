@@ -4,7 +4,7 @@ package middleware
 import (
 	"backend-api/database"
 	"net/http"
-	"strings" // 👈 เพิ่มตัวนี้เข้ามาด้วยนะครับ
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -37,10 +37,10 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// 3. ดึง Secret Key จากไฟล์ .env
+		// 2. ดึง Secret Key จากไฟล์ .env (Production Standard)
 		secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
 
-		// 4. ตรวจสอบความถูกต้องและวันหมดอายุของ Token
+		// 3. ตรวจสอบความถูกต้องและวันหมดอายุของ Token
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
@@ -49,14 +49,14 @@ func AuthMiddleware() gin.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid {
-			// ล้างคุกกี้ทิ้ง
+			// ถ้า Token หมดอายุ หรือถูกปลอมแปลง ให้ล้างคุกกี้ทิ้งซะ
 			c.SetCookie("auth_token", "", -1, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid or expired token"})
 			c.Abort()
 			return
 		}
 
-		// 5. แกะข้อมูล UserID ออกมาเก็บไว้ใน Context เพื่อให้ API อื่นๆ เอาไปใช้งานต่อได้
+		// 🟢 4. แกะข้อมูล UserID ออกมาเก็บไว้ใน Context เพื่อให้ API อื่นๆ เอาไปใช้งานต่อได้
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
 			c.Set("user_id", claims["user_id"])
 		}

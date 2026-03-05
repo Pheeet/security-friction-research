@@ -7,6 +7,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 function CheckpointRedirector() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const urlToken = searchParams.get('token');
+  if (urlToken) {
+    sessionStorage.setItem('token', urlToken);
+  }
 
   const [loadingState, setLoadingState] = useState<'preparing' | 'clearing'>('preparing');
 

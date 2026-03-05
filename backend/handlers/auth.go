@@ -43,7 +43,7 @@ func isPasswordStrong(pass string) bool {
 	return hasMinLen && hasUpper && hasLower && hasNumber
 }
 
-// ฟังก์ชันช่วยส่งอีเมล
+// ฟังก์ชันช่วยส่งอีเมล (ใช้ Brevo API)
 func sendEmailOTP(to string, otp string, refCode string) error {
 	apiKey := os.Getenv("BREVO_API_KEY")
 	senderEmail := os.Getenv("SENDER_EMAIL") // อีเมล Gmail ของคุณที่ยืนยันใน Brevo แล้ว
@@ -189,7 +189,7 @@ func RegisterHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "สมัครสมาชิกสำเร็จ!"})
 }
 
-// LoginHandler (แก้ไข: เรียกใช้ sendEmailOTP)
+// LoginHandler
 func LoginHandler(c *gin.Context) {
 	var creds LoginRequest
 	if err := c.ShouldBindJSON(&creds); err != nil {
@@ -258,9 +258,6 @@ func LoginHandler(c *gin.Context) {
 
 	// --- 2FA Logic ---
 	method := "email"
-	//if user.Provider == "google" {
-	//	method = "push"
-	//}
 	user.TwoFACode = ""
 	user.TwoFARef = ""
 	user.IsPushApproved = false
@@ -277,7 +274,6 @@ func LoginHandler(c *gin.Context) {
 		RiskLevel:      riskLevel,
 		CaptchaType:    captchaType,
 		Token:          generatedToken,
-		// ไม่ต้องส่ง RefCode กลับไปตอนนี้ก็ได้ เพราะเดี๋ยว RequestOTPHandler จะสร้างให้ใหม่
 	})
 }
 
@@ -343,8 +339,6 @@ func Verify2FAHandler(c *gin.Context) {
 		}
 
 		// 3. ตั้งค่า HttpOnly Cookie ระดับ Production
-		// พารามิเตอร์: name, value, maxAge(วินาที), path, domain, secure(HTTPS), httpOnly
-		// หมายเหตุ: secure ให้เป็น false ไปก่อนตอนทำบน localhost ถ้าขึ้นของจริงค่อยเปลี่ยนเป็น true
 		c.SetCookie("auth_token", tokenString, 3600*24, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
 
 		c.JSON(http.StatusOK, gin.H{

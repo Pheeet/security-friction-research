@@ -132,7 +132,7 @@ function ChallengeContent() {
 
   const handleResend = async () => {
     setOtpError('');
-    setLoading(true);
+    setLoading(true);a/request`,
     try {
       const res = await fetch(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")}/api/2fa/request`, {
         method: 'POST',
@@ -297,7 +297,7 @@ function ChallengeContent() {
                 onFocus={(e) => {
                   e.target.style.borderColor = otpError ? '#ef4444' : greenThemeColor;
                   e.target.style.boxShadow = otpError ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : `0 0 0 3px rgba(5, 150, 105, 0.1)`;
-                }}
+                }}a/request`,
                 onBlur={(e) => {
                   e.target.style.borderColor = otpError ? '#ef4444' : '#d1d5db';
                   e.target.style.boxShadow = 'none';

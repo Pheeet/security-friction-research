@@ -120,6 +120,7 @@ func GoogleCallback(c *gin.Context) {
 	riskLevel := "static"
 	captchaType := ""
 	require2FA := "true"
+	tokenString := "" // ⭐ 1. สร้างตัวแปรมารอรับ Token
 
 	if experimentMode == "adaptive" {
 		riskLevel = "low"
@@ -131,7 +132,8 @@ func GoogleCallback(c *gin.Context) {
 			"user_id": user.ID,
 			"exp":     time.Now().Add(time.Hour * 24).Unix(),
 		})
-		if tokenString, err := token.SignedString([]byte(secret)); err == nil {
+		if t, err := token.SignedString([]byte(secret)); err == nil {
+			tokenString = t // ⭐ 2. เก็บ Token ลงตัวแปร
 			c.SetCookie("auth_token", tokenString, 3600*24, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
 		}
 	}
@@ -153,17 +155,19 @@ func GoogleCallback(c *gin.Context) {
 	user.TwoFACode = ""
 	user.TwoFARef = ""
 	user.IsPushApproved = false
-	user.TwoFARef = ""
 	user.TwoFAExpiry = time.Time{}
 	database.DB.Save(&user)
 
 	frontendURL := database.GetEnv("FRONTEND_URL", "http://localhost:3000")
+
+	// ⭐ 3. แนบ Token ไปกับ URL parameters ด้วยเลย
 	checkpointURL := fmt.Sprintf(
-		frontendURL+"/security-checkpoint?userId=%d&method=email&mode=%s&risk=%s&captcha=%s&req2fa=%s",
-		user.ID, experimentMode, riskLevel, captchaType, require2FA,
+		"%s/security-checkpoint?userId=%d&method=email&mode=%s&risk=%s&captcha=%s&req2fa=%s&token=%s",
+		frontendURL, user.ID, experimentMode, riskLevel, captchaType, require2FA, tokenString,
 	)
 
-	c.Redirect(http.StatusTemporaryRedirect, checkpointURL)
+	// ⭐ 4. เปลี่ยนเป็น StatusFound (302) จะปลอดภัยกับการ Redirect ข้ามโดเมนมากกว่า 307
+	c.Redirect(http.StatusFound, checkpointURL)
 }
 
 // --- API ใหม่: สำหรับขอ OTP หลังจากผ่าน Captcha ---

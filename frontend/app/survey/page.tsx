@@ -153,6 +153,7 @@ export default function SurveyPage() {
       setIsSubmitting(false);
       alert('เกิดข้อผิดพลาดในการส่งข้อมูล กรุณาลองใหม่อีกครั้ง');
     } 
+    // หมายเหตุ: เอา finally ออก เพราะถ้าโหลดสำเร็จ (res.ok) เราอยากค้าง state isSuccess เอาไว้
   };
 
   // ⭐ 3. หน้าจอตอนที่กำลังโหลดเช็คโหมด (เพื่อแก้ปัญหา UI กระพริบ)

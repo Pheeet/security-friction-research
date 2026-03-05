@@ -140,7 +140,7 @@ export default function SliderCaptcha({ userId, onSuccess }: Props) {
                 <input
                     type="range"
                     min="0"
-                    max={captchaWidth - 50}
+                    max={captchaWidth - 70}
                     value={sliderValue}
                     onChange={(e) => setSliderValue(Number(e.target.value))}
                     onMouseUp={handleVerify} 

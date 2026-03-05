@@ -1,3 +1,7 @@
+# security-friction-research
+
+framework: gin cors
+
 # Adaptive Security Authentication Research
 
 This project is a Full-Stack application designed to research and evaluate user behavior and satisfaction regarding different authentication security models: **Static Security** vs **Adaptive Security**.

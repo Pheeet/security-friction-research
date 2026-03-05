@@ -204,13 +204,13 @@ func VerifySliderAnswer(sessionID string, userAnswer int) bool {
 		return false
 	}
 	delete(sliderAnswers, sessionID) // ลบทิ้งทันทีหลังตรวจ
-	
+
 	// Tolerance +/- 5 pixels
 	diff := correctX - userAnswer
 	if diff < 0 {
 		diff = -diff
 	}
-	return diff <= 5
+	return diff <= 12
 }
 
 type SliderVerifyRequest struct {

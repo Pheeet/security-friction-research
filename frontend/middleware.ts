@@ -1,32 +1,37 @@
+//middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
-  const path = request.nextUrl.pathname;
-  const isLoggedIn = request.cookies.has("auth_token");
+export function middleware(request: NextRequest){
+    // ดึง path ปัจจุบัน
+    const path = request.nextUrl.pathname;
 
-  const isGuestOnlyPath = path === "/login" || path === "/register";
-  const isProtectedPath = path === "/survey" || path === "/thank-you";
+    const isLoggedIn = request.cookies.has('auth_token');
+                         
+    const isGuestOnlyPath = path === '/login' || path === '/register';
 
-  if (isLoggedIn && isGuestOnlyPath) {
-    return NextResponse.redirect(new URL("/survey", request.url));
-  }
+    const isProtectedPath = path === '/survey' || path === '/thank-you';
 
-  if (!isLoggedIn && isProtectedPath) {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
+    // const isPublicPath = path === '/login' || 
+    //                      path === '/register' || 
+    //                      path === '/security-checkpoint' ||
+    //                      path.startsWith('/captcha') || 
+    //                      path.startsWith('/2fa');
 
-  return NextResponse.next();
+
+    if (isLoggedIn && isGuestOnlyPath) {
+      return NextResponse.redirect(new URL('/survey', request.url));
+    }
+
+    if (!isLoggedIn && isProtectedPath) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    "/",
-    "/login",
-    "/register",
-    "/survey",
-    "/thank-you",
-    "/welcome",
-    "/security-checkpoint",
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };
