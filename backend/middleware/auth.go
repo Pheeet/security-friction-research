@@ -4,26 +4,43 @@ package middleware
 import (
 	"backend-api/database"
 	"net/http"
+	"strings" // 👈 เพิ่มตัวนี้เข้ามาด้วยนะครับ
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// AuthMiddleware validates HttpOnly JWT token
+// AuthMiddleware validates JWT token from Header or Cookie
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 1. ดึง Token จาก Cookie ที่ชื่อ "auth_token" (ปลอดภัยกว่า Header)
-		tokenString, err := c.Cookie("auth_token")
-		if err != nil || tokenString == "" {
+		var tokenString string
+
+		// 🟢 1. ลองดึงจาก Header 'Authorization' ก่อน (สำหรับ Frontend ที่อยู่คนละโดเมน Vercel -> Render)
+		authHeader := c.GetHeader("Authorization")
+		if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+			// ตัดคำว่า "Bearer " ออก เหลือแค่ตัว Token ล้วนๆ
+			tokenString = strings.TrimPrefix(authHeader, "Bearer ")
+		}
+
+		// 🟢 2. ถ้าใน Header ไม่มี ลองหาใน Cookie (เผื่อใช้ตอนเทสใน Localhost หรือโดเมนเดียวกัน)
+		if tokenString == "" {
+			cookieToken, err := c.Cookie("auth_token")
+			if err == nil && cookieToken != "" {
+				tokenString = cookieToken
+			}
+		}
+
+		// ถ้าหาไม่เจอทั้ง 2 ทาง ค่อยเตะกลับ
+		if tokenString == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: No token provided"})
 			c.Abort()
 			return
 		}
 
-		// 2. ดึง Secret Key จากไฟล์ .env (Production Standard)
+		// 3. ดึง Secret Key จากไฟล์ .env
 		secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
 
-		// 3. ตรวจสอบความถูกต้องและวันหมดอายุของ Token
+		// 4. ตรวจสอบความถูกต้องและวันหมดอายุของ Token
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
@@ -32,14 +49,14 @@ func AuthMiddleware() gin.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid {
-			// ถ้า Token หมดอายุ หรือถูกปลอมแปลง ให้ล้างคุกกี้ทิ้งซะ
+			// ล้างคุกกี้ทิ้ง
 			c.SetCookie("auth_token", "", -1, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid or expired token"})
 			c.Abort()
 			return
 		}
 
-		// 🟢 4. แกะข้อมูล UserID ออกมาเก็บไว้ใน Context เพื่อให้ API อื่นๆ เอาไปใช้งานต่อได้
+		// 5. แกะข้อมูล UserID ออกมาเก็บไว้ใน Context เพื่อให้ API อื่นๆ เอาไปใช้งานต่อได้
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
 			c.Set("user_id", claims["user_id"])
 		}
