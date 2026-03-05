@@ -210,7 +210,7 @@ func VerifySliderAnswer(sessionID string, userAnswer int) bool {
 	if diff < 0 {
 		diff = -diff
 	}
-	return diff <= 5
+	return diff <= 12
 }
 
 type SliderVerifyRequest struct {

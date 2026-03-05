@@ -1,4 +1,4 @@
-//turnstile.go
+//handlers/turnstile.go
 
 package handlers
 
@@ -57,7 +57,7 @@ func VerifyTurnstile(c *gin.Context) {
 	data := url.Values{}
 	data.Set("secret", secretKey)
 	data.Set("response", req.Token)
-	data.Set("remoteip", c.ClientIP())
+	//data.Set("remoteip", c.ClientIP())
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.PostForm("https://challenges.cloudflare.com/turnstile/v0/siteverify", data)
