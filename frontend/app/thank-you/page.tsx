@@ -35,7 +35,7 @@ export default function ThankYouPage() {
     for (let i = 0; i < cookies.length; i++) {
         const cookie = cookies[i];
         const eqPos = cookie.indexOf("=");
-        const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+        const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
         document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
     }
 
@@ -44,7 +44,7 @@ export default function ThankYouPage() {
       sessionStorage.setItem('experiment_mode', 'adaptive');
       document.cookie = "experiment_mode=adaptive; path=/; max-age=3600";
       setTimeout(() => {
-        router.push('/login');
+        window.location.href = '/login';
       }, 1500);
     } else {
       setTimeout(() => {
