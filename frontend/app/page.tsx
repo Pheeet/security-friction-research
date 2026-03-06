@@ -19,7 +19,8 @@ export default function WelcomePage() {
     
     setIsStarting(true);
     sessionStorage.setItem('experiment_mode', 'static');
-    document.cookie = "experiment_mode=static; path=/";
+    const cookiePolicy = process.env.NODE_ENV === "production" ? "; SameSite=None; Secure" : "; SameSite=Lax";
+    document.cookie = `experiment_mode=static; path=/${cookiePolicy}`;
     
     setTimeout(() => {
       router.push('/login');

@@ -127,6 +127,7 @@ export default function SurveyPage() {
           // ⭐ 2. แนบ Token ไปใน Header ตรงๆ เลย เบราว์เซอร์จะไม่บล็อก
           'Authorization': `Bearer ${token}` 
         },
+        credentials: 'include',
         // ⭐ 3. เอา credentials: 'include' ออกไปเลยครับ ไม่ต้องพึ่ง Cookie แล้ว
         body: JSON.stringify({
           userId: userId,

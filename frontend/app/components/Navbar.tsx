@@ -25,7 +25,10 @@ export default function Navbar() {
       sessionStorage.clear();
 
       // 1. เรียก API ให้ Server ล้าง Cookie ให้สะอาด
-      await fetch('/api/logout', { method: 'POST' });
+      await fetch('/api/logout', { 
+        method: 'POST',
+        credentials: 'include'
+      });
       
       // 2. ล้าง Client Router Cache 
       router.refresh();

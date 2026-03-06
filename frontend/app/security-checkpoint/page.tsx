@@ -32,7 +32,8 @@ function CheckpointRedirector() {
       sessionStorage.setItem('token', urlToken);
       
       // 🛡️ [เพิ่มบรรทัดนี้] สร้างคุกกี้ให้ Vercel (Next.js Middleware) รู้จัก Token นี้ด้วย!
-      document.cookie = `auth_token=${urlToken}; path=/; max-age=86400`;
+      const cookiePolicy = process.env.NODE_ENV === "production" ? "; SameSite=None; Secure" : "; SameSite=Lax";
+      document.cookie = `auth_token=${urlToken}; path=/; max-age=86400${cookiePolicy}`;
     }
     
     const userId = searchParams.get('userId');

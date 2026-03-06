@@ -14,13 +14,17 @@ const SessionCookieName = "research_session_id"
 
 func SessionMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Set SameSite Lax mode for CSRF protection
-		c.SetSameSite(http.SameSiteLaxMode)
-
 		sessionID, err := c.Cookie(SessionCookieName)
 		if err != nil || sessionID == "" {
 			sessionID = uuid.New().String() // อัปเดตค่าลงตัวแปรเดิมเลย
-			c.SetCookie(SessionCookieName, sessionID, 3600*24, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
+			isProd := database.GetEnv("ENV", "development") == "production"
+			if isProd {
+				c.SetSameSite(http.SameSiteNoneMode)
+				c.SetCookie(SessionCookieName, sessionID, 3600*24, "/", "", true, true)
+			} else {
+				c.SetSameSite(http.SameSiteLaxMode)
+				c.SetCookie(SessionCookieName, sessionID, 3600*24, "/", "", false, true)
+			}
 		}
 
 		c.Set(SessionCookieName, sessionID) //ทีนี้ค่าที่ส่งเข้า Context จะมี ID เสมอแล้วครับ

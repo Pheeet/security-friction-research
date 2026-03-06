@@ -126,6 +126,7 @@ export default function LoginPage() {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}/api/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({ 
               username, 
               password, 
@@ -148,12 +149,13 @@ export default function LoginPage() {
             sessionStorage.setItem('captcha_type', data.captcha_type || ''); 
             sessionStorage.setItem('2fa_method', data.method || 'email');
 
+            const cookiePolicy = process.env.NODE_ENV === "production" ? "; SameSite=None; Secure" : "; SameSite=Lax";
             if (data.token) {
-              document.cookie = `auth_token=${data.token}; path=/; max-age=86400`;
+              document.cookie = `auth_token=${data.token}; path=/; max-age=86400${cookiePolicy}`;
               sessionStorage.setItem('token', data.token); // 👈 เพิ่มบรรทัดนี้เข้าไปครับ!
             }
 
-            document.cookie = `experiment_mode=${experimentMode}; path=/; max-age=86400`;
+            document.cookie = `experiment_mode=${experimentMode}; path=/; max-age=86400${cookiePolicy}`;
             setIsLoading(false);
             setIsSuccess(true);
 

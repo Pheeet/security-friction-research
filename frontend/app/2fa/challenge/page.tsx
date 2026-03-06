@@ -41,7 +41,9 @@ function ChallengeContent() {
     const fetchUserEmail = async () => {
       if (!userId) return;
       try {
-        const res = await fetch(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")}/api/user/${userId}`);
+        const res = await fetch(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")}/api/user/${userId}`, {
+          credentials: 'include'
+        });
         const data = await res.json();
         if (res.ok && data.email) {
           setUserEmail(data.email);
@@ -98,7 +100,8 @@ function ChallengeContent() {
       if (data.success) {
         
         if (data.token) {
-          document.cookie = `auth_token=${data.token}; path=/; max-age=86400`;
+          const cookiePolicy = process.env.NODE_ENV === "production" ? "; SameSite=None; Secure" : "; SameSite=Lax";
+          document.cookie = `auth_token=${data.token}; path=/; max-age=86400${cookiePolicy}`;
           
           // ⭐ เพิ่มบรรทัดนี้เข้าไปครับ เพื่อให้หน้า Survey ดึงไปใช้ต่อได้!
           sessionStorage.setItem('token', data.token); 
@@ -137,6 +140,7 @@ function ChallengeContent() {
       const res = await fetch(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")}/api/2fa/request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           user_id: parseInt(userId || '0', 10),
           method: method 

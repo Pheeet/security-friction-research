@@ -112,7 +112,14 @@ func VerifyTurnstile(c *gin.Context) {
 					"exp":     time.Now().Add(time.Hour * 24).Unix(),
 				})
 				if tokenString, err := token.SignedString([]byte(secret)); err == nil {
-					c.SetCookie("auth_token", tokenString, 3600*24, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
+					isProd := database.GetEnv("ENV", "development") == "production"
+					if isProd {
+						c.SetSameSite(http.SameSiteNoneMode)
+						c.SetCookie("auth_token", tokenString, 3600*24, "/", "", true, true)
+					} else {
+						c.SetSameSite(http.SameSiteLaxMode)
+						c.SetCookie("auth_token", tokenString, 3600*24, "/", "", false, true)
+					}
 				}
 			}
 		}

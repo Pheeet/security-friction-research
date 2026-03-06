@@ -43,12 +43,12 @@ function MathContent() {
       const res = await fetch(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")}/api/2fa/request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           user_id: parseInt(userId || '0', 10),
-          method: method
+          method: method 
         }),
       });
-
       const data = await res.json();
 
       if (data.success) {

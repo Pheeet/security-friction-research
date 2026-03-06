@@ -248,23 +248,15 @@ func LoginHandler(c *gin.Context) {
 			})
 			if tokenString, err := token.SignedString([]byte(secret)); err == nil {
 				generatedToken = tokenString
-				// 1. 🌟 ต้องประกาศ SameSite เป็น None ก่อน เพื่ออนุญาตให้ข้ามโดเมน Vercel <-> Render ได้
-				c.SetSameSite(http.SameSiteNoneMode)
-
-				// 2. Set Cookie ตามปกติ แต่บังคับ Secure เป็น true ไปเลยบน Production
-				isProduction := database.GetEnv("ENV", "development") == "production"
-
-				c.SetCookie(
-					"auth_token",
-					tokenString,
-					3600*24,
-					"/",
-					database.GetEnv("COOKIE_DOMAIN", ""), // แนะนำให้ปล่อยเป็น "" (ค่าว่าง) ไว้ครับ
-					isProduction,                         // ถ้าเป็น Production ต้องเป็น true เท่านั้น
-					true,                                 // HttpOnly = true ป้องกัน XSS
-				)
-			}
-		}
+				isProd := database.GetEnv("ENV", "development") == "production"
+				if isProd {
+					c.SetSameSite(http.SameSiteNoneMode)
+					c.SetCookie("auth_token", tokenString, 3600*24, "/", "", true, true)
+				} else {
+					c.SetSameSite(http.SameSiteLaxMode)
+					c.SetCookie("auth_token", tokenString, 3600*24, "/", "", false, true)
+				}
+			}		}
 	}
 
 	// [RESEARCH LOGIC] สร้าง SessionID และเริ่มบันทึก Journey
@@ -365,7 +357,14 @@ func Verify2FAHandler(c *gin.Context) {
 		}
 
 		// 3. ตั้งค่า HttpOnly Cookie ระดับ Production
-		c.SetCookie("auth_token", tokenString, 3600*24, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
+		isProd := database.GetEnv("ENV", "development") == "production"
+		if isProd {
+			c.SetSameSite(http.SameSiteNoneMode)
+			c.SetCookie("auth_token", tokenString, 3600*24, "/", "", true, true)
+		} else {
+			c.SetSameSite(http.SameSiteLaxMode)
+			c.SetCookie("auth_token", tokenString, 3600*24, "/", "", false, true)
+		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,

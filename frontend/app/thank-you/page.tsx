@@ -24,7 +24,10 @@ export default function ThankYouPage() {
 
     try {
       // ยิงไปที่ Next.js API Route ของคุณเพื่อเคลียร์ Cookies ให้เกลี้ยง!
-      await fetch('/api/logout', { method: 'POST' });
+      await fetch('/api/logout', { 
+        method: 'POST',
+        credentials: 'include'
+      });
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -42,7 +45,8 @@ export default function ThankYouPage() {
     if (destination === '/login') {
       // ฝังโหมด Adaptive แล้วส่งกลับไปหน้า Login
       sessionStorage.setItem('experiment_mode', 'adaptive');
-      document.cookie = "experiment_mode=adaptive; path=/; max-age=3600";
+      const cookiePolicy = process.env.NODE_ENV === "production" ? "; SameSite=None; Secure" : "; SameSite=Lax";
+      document.cookie = `experiment_mode=adaptive; path=/; max-age=3600${cookiePolicy}`;
       setTimeout(() => {
         window.location.href = '/login';
       }, 1500);
