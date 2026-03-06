@@ -30,6 +30,9 @@ function CheckpointRedirector() {
     const urlToken = searchParams.get('token');
     if (urlToken) {
       sessionStorage.setItem('token', urlToken);
+      
+      // 🛡️ [เพิ่มบรรทัดนี้] สร้างคุกกี้ให้ Vercel (Next.js Middleware) รู้จัก Token นี้ด้วย!
+      document.cookie = `auth_token=${urlToken}; path=/; max-age=86400`;
     }
     
     const userId = searchParams.get('userId');

@@ -83,17 +83,14 @@ export default function LoginPage() {
       setMouseMoved(true);
       window.removeEventListener('mousemove', handleHumanInteraction);
       window.removeEventListener('touchstart', handleHumanInteraction);
-      window.removeEventListener('keydown', handleHumanInteraction); 
     };
 
     window.addEventListener('mousemove', handleHumanInteraction);
     window.addEventListener('touchstart', handleHumanInteraction);
-    window.addEventListener('keydown', handleHumanInteraction); 
 
     return () => {
       window.removeEventListener('mousemove', handleHumanInteraction);
       window.removeEventListener('touchstart', handleHumanInteraction);
-      window.removeEventListener('keydown', handleHumanInteraction); 
     };
 
   }, []);
