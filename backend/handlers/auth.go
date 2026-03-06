@@ -239,9 +239,8 @@ func LoginHandler(c *gin.Context) {
 			require2FA = false
 		}
 
-		// แจก Token ทันทีเฉพาะคนที่ความเสี่ยง "ต่ำ (low)" เท่านั้น
-		// Medium ต้องไปเล่น Captcha ก่อน / High ต้องไป 2FA ก่อน
-		if riskLevel == "low" {
+		// ✅ แก้เป็น: แจกให้ทั้ง low และ medium
+		if riskLevel == "low" || riskLevel == "medium" {
 			secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 				"user_id": user.ID,
@@ -249,8 +248,6 @@ func LoginHandler(c *gin.Context) {
 			})
 			if tokenString, err := token.SignedString([]byte(secret)); err == nil {
 				generatedToken = tokenString
-
-				// 🛡️ [สำคัญ] ต้องเพิ่ม SameSiteNoneMode ไม่งั้น Vercel-Render จะบล็อก Cookie
 				c.SetSameSite(http.SameSiteNoneMode)
 				c.SetCookie("auth_token", tokenString, 3600*24, "/", database.GetEnv("COOKIE_DOMAIN", ""), true, true)
 			}
@@ -418,41 +415,54 @@ func GetUserHandler(c *gin.Context) {
 
 func CalculateRiskScore(req LoginRequest) (string, string) {
 	score := 0
+	reason := ""
 
-	// เมาส์ไม่ขยับเลย หรือไม่ทัชจอเลย (บอทชัวร์ 99%)
+	// 1. เมาส์ไม่ขยับ และ ไม่มีการกดคีย์บอร์ดเลย (บอท 100%)
 	if !req.MouseMoved {
 		score += 50
+		reason += "[No Mouse/Key] "
 	}
 
-	// วางรหัสผ่าน (อาจจะใช้ Password Manager หรือสคริปต์ก๊อปวาง)
-	if req.HasPasted {
-		score += 20
-	}
-
-	// พิมพ์เสร็จเร็วผิดมนุษย์ (น้อยกว่า 0.5 วินาที)
-	if req.TypingTime > 0 && req.TypingTime < 500 {
+	// 2. พิมพ์เสร็จเร็วผิดมนุษย์ (< 0.5 วิ)
+	// *แต่ถ้าเขา HasPasted ด้วย แปลว่าเขาใช้ Autofill ไม่ใช่บอท ให้ยกเว้นไว้
+	if req.TypingTime > 0 && req.TypingTime < 500 && !req.HasPasted {
 		score += 30
+		reason += "[Fast Typing] "
 	}
 
-	// ลบแก้รหัสผ่านบ่อย (เดารหัส หรือสับสน)
+	// 3. วางรหัสผ่าน (HasPasted)
+	// ลดแต้มลงเหลือ 15 เพราะคนปกติก็ใช้ Password Manager กันเยอะ
+	if req.HasPasted {
+		score += 15
+		reason += "[Pasted] "
+	}
+
+	// 4. ลบแก้รหัสผ่านบ่อย (เดารหัส หรือสับสน)
 	if req.BackspaceCount > 3 {
 		score += 20
+		reason += "[Backspace > 3] "
 	}
+
+	// 🕵️‍♂️ ปริ้นท์ Log ออกมาดูเลยว่าทำไมคนนี้ถึงได้แต้มเท่านี้!
+	fmt.Printf("\n--- [ADAPTIVE CALCULATION] ---\n")
+	fmt.Printf("User Payload: %+v\n", req)
+	fmt.Printf("Total Score: %d | Reasons: %s\n", score, reason)
 
 	// ประเมินระดับความเสี่ยงจากคะแนนรวม
 	if score >= 50 {
-		// เสี่ยงสูง (High Risk): โดนด่านยาก Math หรือ Text
+		fmt.Printf("Result: HIGH RISK\n------------------------------\n")
 		challenges := []string{"math", "text"}
 		selectedChallenge := challenges[rand.Intn(len(challenges))]
 		return "high", selectedChallenge
 
 	} else if score >= 20 {
-		// เสี่ยงกลาง (Medium Risk): โดนด่านง่าย Slider หรือ Cloudflare
+		fmt.Printf("Result: MEDIUM RISK\n------------------------------\n")
 		challenges := []string{"slider", "cloudflare"}
 		selectedChallenge := challenges[rand.Intn(len(challenges))]
 		return "medium", selectedChallenge
 	}
 
 	// เสี่ยงต่ำ (Low Risk): พฤติกรรมมนุษย์ปกติ ให้ผ่านฉลุย
+	fmt.Printf("Result: LOW RISK\n------------------------------\n")
 	return "low", "none"
 }

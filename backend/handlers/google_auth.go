@@ -117,24 +117,56 @@ func GoogleCallback(c *gin.Context) {
 		experimentMode = "adaptive"
 	}
 
+	// 💡 1. ดึงคุกกี้พฤติกรรมที่ Frontend ฝากไว้
+	mouseMovedCookie, _ := c.Cookie("mouse_moved")
+	hasPastedCookie, _ := c.Cookie("has_pasted")
+	backspaceCookie, _ := c.Cookie("backspace_count")
+
+	// แปลงค่าให้พร้อมใช้งาน
+	mouseMoved := mouseMovedCookie == "true"
+	hasPasted := hasPastedCookie == "true"
+	backspaceCount, _ := strconv.Atoi(backspaceCookie)
+
+	// ล้างคุกกี้พฤติกรรมทิ้ง
+	c.SetCookie("mouse_moved", "", -1, "/", database.GetEnv("COOKIE_DOMAIN", ""), true, true)
+	c.SetCookie("has_pasted", "", -1, "/", database.GetEnv("COOKIE_DOMAIN", ""), true, true)
+	c.SetCookie("backspace_count", "", -1, "/", database.GetEnv("COOKIE_DOMAIN", ""), true, true)
+
 	riskLevel := "static"
 	captchaType := ""
 	require2FA := "true"
-	tokenString := "" // ⭐ 1. สร้างตัวแปรมารอรับ Token
+	tokenString := ""
 
 	if experimentMode == "adaptive" {
-		riskLevel = "low"
-		captchaType = "none"
-		require2FA = "false"
+		// 💡 2. จำลอง LoginRequest เพื่อเอาไปเข้าฟังก์ชันคำนวณคะแนน
+		adaptiveReq := LoginRequest{
+			MouseMoved:     mouseMoved,
+			HasPasted:      hasPasted,
+			BackspaceCount: backspaceCount,
+			TypingTime:     0, // Google SSO ไม่มีการพิมพ์รหัสผ่าน
+		}
 
-		secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-			"user_id": user.ID,
-			"exp":     time.Now().Add(time.Hour * 24).Unix(),
-		})
-		if t, err := token.SignedString([]byte(secret)); err == nil {
-			tokenString = t // ⭐ 2. เก็บ Token ลงตัวแปร
-			c.SetCookie("auth_token", tokenString, 3600*24, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
+		// 💡 3. คำนวณคะแนน Adaptive ของจริง!
+		riskLevel, captchaType = CalculateRiskScore(adaptiveReq)
+
+		if riskLevel == "high" {
+			require2FA = "true"
+		} else {
+			require2FA = "false"
+		}
+
+		// 💡 4. แจก Token ทันทีให้กับกลุ่ม Low และ Medium (แก้บั๊กหน้า Survey เตะกลับ)
+		if riskLevel == "low" || riskLevel == "medium" {
+			secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+				"user_id": user.ID,
+				"exp":     time.Now().Add(time.Hour * 24).Unix(),
+			})
+			if t, err := token.SignedString([]byte(secret)); err == nil {
+				tokenString = t
+				c.SetSameSite(http.SameSiteNoneMode) // เพิ่ม SameSite ให้ด้วยกันเหนียว
+				c.SetCookie("auth_token", tokenString, 3600*24, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
+			}
 		}
 	}
 
