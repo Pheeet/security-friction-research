@@ -159,6 +159,9 @@ func GenerateSliderCaptcha(c *gin.Context) {
 		userID = "UnknownUser" // กันเหนียว
 	}
 
+	// 👇 เติมบรรทัดนี้ลงไปเพื่อดูว่าเซฟลง Memory ถูกไหม
+	fmt.Printf("[GENERATE] UserID: %s | Target X (เป้าหมาย): %d\n", userID, targetX)
+
 	StoreSliderAnswer(userID, targetX) // เซฟคำตอบโดยผูกกับ userID
 
 	c.JSON(http.StatusOK, SliderResponse{
@@ -199,9 +202,14 @@ func VerifySliderAnswer(sessionID string, userAnswer int) bool {
 	sliderMu.Lock()
 	defer sliderMu.Unlock()
 	correctX, exists := sliderAnswers[sessionID]
+
+	// 👇 เติมบรรทัดนี้ลงไปเพื่อดูว่าหาคำตอบเจอไหม และค่าที่ส่งมาคืออะไร
+	fmt.Printf("[VERIFY] UserID: %s | เจอคำตอบไหม?: %v | คำตอบที่ถูก: %d | User ลากมาที่: %d\n", sessionID, exists, correctX, userAnswer)
+
 	if !exists {
 		return false
 	}
+
 	delete(sliderAnswers, sessionID) // ลบทิ้งทันทีหลังตรวจ
 
 	maxMovableBackend := float64(BoxWidth - PuzzleWidth)
