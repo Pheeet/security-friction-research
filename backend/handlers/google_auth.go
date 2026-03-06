@@ -1,5 +1,4 @@
-//handlers/google_auth.go
-
+// handlers/google_auth.go
 package handlers
 
 import (
@@ -40,8 +39,24 @@ func InitGoogleAuth() {
 
 // 2. Handler สำหรับปุ่ม "Sign in with Google"
 func GoogleLogin(c *gin.Context) {
-	// สร้าง URL เพื่อส่ง User ไปหน้า Login ของ Google
-	url := googleOauthConfig.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+	// 💡 1. รับค่าพฤติกรรมที่ Frontend แนบมากับ URL
+	mode := c.Query("mode")
+	mouse := c.Query("mouse")
+	paste := c.Query("paste")
+	bs := c.Query("bs")
+	timeParam := c.Query("time")
+
+	// กันเหนียว เผื่อไม่มีการส่งค่ามา
+	if mode == "" {
+		mode = "static"
+	}
+
+	// 💡 2. แพ็กข้อมูลทั้งหมดรวมกัน คั่นด้วยเครื่องหมาย |
+	// ตัวอย่าง: "adaptive|true|false|0|1700000000"
+	stateString := fmt.Sprintf("%s|%s|%s|%s|%s", mode, mouse, paste, bs, timeParam)
+
+	// 💡 3. ฝาก stateString ไปให้ Google ถือไว้
+	url := googleOauthConfig.AuthCodeURL(stateString, oauth2.AccessTypeOffline)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
@@ -49,6 +64,7 @@ func GoogleLogin(c *gin.Context) {
 func GoogleCallback(c *gin.Context) {
 
 	code := c.Query("code")
+	state := c.Query("state") // 💡 รับกล่อง state คืนมาจาก Google
 
 	token, err := googleOauthConfig.Exchange(context.Background(), code)
 	if err != nil {
@@ -83,7 +99,6 @@ func GoogleCallback(c *gin.Context) {
 	// ❌ ถ้าไม่มี user → ไป Register
 	// -----------------------------
 	if err := database.DB.Where("email = ?", googleUser.Email).First(&user).Error; err != nil {
-		// ตรวจสอบบรรทัดที่ Redirect ไปหน้า Register
 		encodedEmail := url.QueryEscape(googleUser.Email)
 		encodedName := url.QueryEscape(googleUser.Name)
 		frontendURL := database.GetEnv("FRONTEND_URL", "http://localhost:3000")
@@ -93,44 +108,32 @@ func GoogleCallback(c *gin.Context) {
 			encodedName,
 		)
 
-		// เปลี่ยนเป็น StatusFound (302)
 		c.Redirect(http.StatusFound, registerURL)
 		return
 	}
 
-	// c.Redirect(http.StatusTemporaryRedirect, twoFAURL)
+	// ------------------------------------------
+	// 💡 แกะกล่องข้อมูล State ที่ฝาก Google ไว้
+	// ------------------------------------------
+	stateParts := strings.Split(state, "|")
+
+	experimentMode := "static"
+	mouseMoved := false
+	hasPasted := false
+	backspaceCount := 0
 	var timeLogin int64 = 0
-	cookieStr, err := c.Cookie("sso_start_time")
-	if err == nil && cookieStr != "" {
-		// แปลงข้อความจาก Cookie เป็นตัวเลข Int64
-		startTimeMs, parseErr := strconv.ParseInt(cookieStr, 10, 64)
-		if parseErr == nil {
-			// เอาเวลาปัจจุบัน (ms) ลบด้วยเวลาตอนโหลดหน้าเว็บ
+
+	if len(stateParts) == 5 {
+		experimentMode = stateParts[0]
+		mouseMoved = (stateParts[1] == "true")
+		hasPasted = (stateParts[2] == "true")
+		backspaceCount, _ = strconv.Atoi(stateParts[3])
+
+		startTimeMs, _ := strconv.ParseInt(stateParts[4], 10, 64)
+		if startTimeMs > 0 {
 			timeLogin = time.Now().UnixMilli() - startTimeMs
 		}
-		// สั่งลบ Cookie ทิ้งเพื่อความสะอาด
-		c.SetCookie("sso_start_time", "", -1, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
 	}
-	experimentMode := "static"
-	modeCookie, err := c.Cookie("experiment_mode")
-	if err == nil && modeCookie == "adaptive" {
-		experimentMode = "adaptive"
-	}
-
-	// 💡 1. ดึงคุกกี้พฤติกรรมที่ Frontend ฝากไว้
-	mouseMovedCookie, _ := c.Cookie("mouse_moved")
-	hasPastedCookie, _ := c.Cookie("has_pasted")
-	backspaceCookie, _ := c.Cookie("backspace_count")
-
-	// แปลงค่าให้พร้อมใช้งาน
-	mouseMoved := mouseMovedCookie == "true"
-	hasPasted := hasPastedCookie == "true"
-	backspaceCount, _ := strconv.Atoi(backspaceCookie)
-
-	// ล้างคุกกี้พฤติกรรมทิ้ง
-	c.SetCookie("mouse_moved", "", -1, "/", database.GetEnv("COOKIE_DOMAIN", ""), true, true)
-	c.SetCookie("has_pasted", "", -1, "/", database.GetEnv("COOKIE_DOMAIN", ""), true, true)
-	c.SetCookie("backspace_count", "", -1, "/", database.GetEnv("COOKIE_DOMAIN", ""), true, true)
 
 	riskLevel := "static"
 	captchaType := ""
@@ -138,7 +141,7 @@ func GoogleCallback(c *gin.Context) {
 	tokenString := ""
 
 	if experimentMode == "adaptive" {
-		// 💡 2. จำลอง LoginRequest เพื่อเอาไปเข้าฟังก์ชันคำนวณคะแนน
+		// 💡 จำลอง LoginRequest เพื่อเอาไปเข้าฟังก์ชันคำนวณคะแนน
 		adaptiveReq := LoginRequest{
 			MouseMoved:     mouseMoved,
 			HasPasted:      hasPasted,
@@ -146,7 +149,7 @@ func GoogleCallback(c *gin.Context) {
 			TypingTime:     0, // Google SSO ไม่มีการพิมพ์รหัสผ่าน
 		}
 
-		// 💡 3. คำนวณคะแนน Adaptive ของจริง!
+		// 💡 คำนวณคะแนน Adaptive
 		riskLevel, captchaType = CalculateRiskScore(adaptiveReq)
 
 		if riskLevel == "high" {
@@ -155,7 +158,7 @@ func GoogleCallback(c *gin.Context) {
 			require2FA = "false"
 		}
 
-		// 💡 4. แจก Token ทันทีให้กับกลุ่ม Low และ Medium (แก้บั๊กหน้า Survey เตะกลับ)
+		// 💡 แจก Token ทันทีให้กับกลุ่ม Low และ Medium
 		if riskLevel == "low" || riskLevel == "medium" {
 			secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -164,7 +167,9 @@ func GoogleCallback(c *gin.Context) {
 			})
 			if t, err := token.SignedString([]byte(secret)); err == nil {
 				tokenString = t
-				c.SetSameSite(http.SameSiteNoneMode) // เพิ่ม SameSite ให้ด้วยกันเหนียว
+
+				// 💡 ตั้งค่า Cookie แบบปลอดภัยสำหรับ Production ข้ามโดเมน
+				c.SetSameSite(http.SameSiteNoneMode)
 				c.SetCookie("auth_token", tokenString, 3600*24, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
 			}
 		}
@@ -192,17 +197,17 @@ func GoogleCallback(c *gin.Context) {
 
 	frontendURL := database.GetEnv("FRONTEND_URL", "http://localhost:3000")
 
-	// ⭐ 3. แนบ Token ไปกับ URL parameters ด้วยเลย
+	// ⭐ แนบ Token และข้อมูลทั้งหมดไปกับ URL ให้หน้า Checkpoint
 	checkpointURL := fmt.Sprintf(
 		"%s/security-checkpoint?userId=%d&method=email&mode=%s&risk=%s&captcha=%s&req2fa=%s&token=%s",
 		frontendURL, user.ID, experimentMode, riskLevel, captchaType, require2FA, tokenString,
 	)
 
-	// ⭐ 4. เปลี่ยนเป็น StatusFound (302) จะปลอดภัยกับการ Redirect ข้ามโดเมนมากกว่า 307
+	// เปลี่ยนเป็น StatusFound (302) ปลอดภัยกว่า
 	c.Redirect(http.StatusFound, checkpointURL)
 }
 
-// --- API ใหม่: สำหรับขอ OTP หลังจากผ่าน Captcha ---
+// --- API สำหรับขอ OTP หลังจากผ่าน Captcha ---
 
 type RequestOTPRequest struct {
 	UserID uint   `json:"user_id"`
@@ -222,18 +227,16 @@ func RequestOTPHandler(c *gin.Context) {
 		return
 	}
 
-	// สร้าง Ref Code ใหม่ทุกครั้งที่ขอ
 	refCode := fmt.Sprintf("%04d", rand.Intn(10000))
 	user.TwoFARef = refCode
 
 	if req.Method == "email" {
 		otp := fmt.Sprintf("%06d", rand.Intn(1000000))
 		user.TwoFACode = otp
-		user.TwoFAExpiry = time.Now().Add(5 * time.Minute) // เริ่มจับเวลา 5 นาทีตรงนี้!
+		user.TwoFAExpiry = time.Now().Add(5 * time.Minute)
 
 		fmt.Printf("Sending Email OTP to %s...\n", user.Email)
 
-		// ส่งอีเมลแบบ Goroutine
 		go func(targetEmail, targetOTP, targetRef string) {
 			err := sendEmailOTP(targetEmail, targetOTP, targetRef)
 			if err != nil {
@@ -263,36 +266,30 @@ func RequestOTPHandler(c *gin.Context) {
 	})
 }
 
-// --- เพิ่ม Handler ใหม่สำหรับเช็กว่ามี User/Email ซ้ำไหม ---
+// --- Handler สำหรับเช็กว่ามี User/Email ซ้ำไหม ---
 func CheckAvailabilityHandler(c *gin.Context) {
 	username := c.Query("username")
 	email := c.Query("email")
 
-	// 🔥 แทรกตรงนี้: แปลง Email เป็นพิมพ์เล็ก
 	if email != "" {
 		email = strings.ToLower(email)
 	}
 
 	var user database.User
 
-	// 1. เช็ก Username
 	if username != "" {
 		if err := database.DB.Where("username = ?", username).First(&user).Error; err == nil {
-			// ถ้าเจอ user นี้ใน db แสดงว่าซ้ำ
 			c.JSON(http.StatusOK, gin.H{"available": false, "message": "ชื่อผู้ใช้นี้ถูกใช้งานแล้ว"})
 			return
 		}
 	}
 
-	// 2. เช็ก Email
 	if email != "" {
 		if err := database.DB.Where("email = ?", email).First(&user).Error; err == nil {
-			// ถ้าเจอ email นี้ใน db แสดงว่าซ้ำ
 			c.JSON(http.StatusOK, gin.H{"available": false, "message": "อีเมลนี้ถูกใช้งานแล้ว"})
 			return
 		}
 	}
 
-	// ถ้าไม่เจอแสดงว่าว่าง (Available)
 	c.JSON(http.StatusOK, gin.H{"available": true})
 }
