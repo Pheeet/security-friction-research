@@ -53,29 +53,47 @@ export default function LoginPage() {
 
   useEffect(() => {
     absoluteStartTime.current = Date.now();
-    const mode = sessionStorage.getItem('experiment_mode');
-    if (mode !== 'adaptive') {
+
+    // 1. ฟังก์ชันตัวช่วยสำหรับดึงค่าจาก Cookie (ชัวร์กว่า Session Storage)
+    const getCookie = (name: string) => {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift();
+      return null;
+    };
+
+    const cookieMode = getCookie('experiment_mode');
+    const sessionMode = sessionStorage.getItem('experiment_mode');
+
+    // 2. เช็กว่าถ้าใน Cookie หรือ Session อันใดอันหนึ่งบอกว่าเป็น Adaptive ให้ล็อคเป็น Adaptive เลย!
+    if (cookieMode === 'adaptive' || sessionMode === 'adaptive') {
+      sessionStorage.setItem('experiment_mode', 'adaptive');
+      setExperimentMode('adaptive');
+      console.log('🛡️ Locked Mode: ADAPTIVE'); // 👈 ปริ้นท์บอกตัวเองจะได้รู้ว่าเข้าโหมดถูก
+    } else {
       sessionStorage.setItem('experiment_mode', 'static');
       setExperimentMode('static');
-      // ลบคุกกี้เก่าที่อาจค้างมาจากรอบก่อน
+      console.log('🛡️ Locked Mode: STATIC');
+      // ลบคุกกี้เก่าที่อาจค้างมา
       document.cookie = "experiment_mode=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    } else {
-      setExperimentMode('adaptive');
     }
 
+    // --- โค้ดส่วนดักจับเมาส์และคีย์บอร์ด ด้านล่างนี้ปล่อยไว้เหมือนเดิมครับ ---
     const handleHumanInteraction = () => {
       setMouseMoved(true);
-      // พอรู้ว่าเป็นคนแล้ว ก็ถอดเซ็นเซอร์ออกได้เลย
       window.removeEventListener('mousemove', handleHumanInteraction);
       window.removeEventListener('touchstart', handleHumanInteraction);
+      window.removeEventListener('keydown', handleHumanInteraction); 
     };
 
     window.addEventListener('mousemove', handleHumanInteraction);
     window.addEventListener('touchstart', handleHumanInteraction);
+    window.addEventListener('keydown', handleHumanInteraction); 
 
     return () => {
       window.removeEventListener('mousemove', handleHumanInteraction);
       window.removeEventListener('touchstart', handleHumanInteraction);
+      window.removeEventListener('keydown', handleHumanInteraction); 
     };
 
   }, []);
