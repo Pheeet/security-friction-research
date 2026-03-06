@@ -66,8 +66,8 @@ export default function SliderCaptcha({ userId, onSuccess }: Props) {
     setStatus(null);
     setSliderValue(0);
     try {
-      // เติม ?userId=${userId} ต่อท้าย URL ตรงนี้ 👇
-      const res = await axios.get(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")}/api/slider?userId=${userId}`, {
+      // เติม &t=${Date.now()} เข้าไปต่อท้ายครับ 👇
+      const res = await axios.get(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")}/api/slider?userId=${userId}&t=${Date.now()}`, {
         withCredentials: true,
       });
       setBgImage(res.data.originalImage);
