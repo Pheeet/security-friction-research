@@ -232,13 +232,16 @@ func LoginHandler(c *gin.Context) {
 	if experimentMode == "adaptive" {
 		riskLevel, captchaType = CalculateRiskScore(creds)
 
+		// กำหนดเงื่อนไข 2FA
 		if riskLevel == "high" {
 			require2FA = true
 		} else {
 			require2FA = false
 		}
 
-		if riskLevel != "high" {
+		// แจก Token ทันทีเฉพาะคนที่ความเสี่ยง "ต่ำ (low)" เท่านั้น
+		// Medium ต้องไปเล่น Captcha ก่อน / High ต้องไป 2FA ก่อน
+		if riskLevel == "low" {
 			secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 				"user_id": user.ID,
@@ -246,10 +249,12 @@ func LoginHandler(c *gin.Context) {
 			})
 			if tokenString, err := token.SignedString([]byte(secret)); err == nil {
 				generatedToken = tokenString
-				c.SetCookie("auth_token", tokenString, 3600*24, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
+
+				// 🛡️ [สำคัญ] ต้องเพิ่ม SameSiteNoneMode ไม่งั้น Vercel-Render จะบล็อก Cookie
+				c.SetSameSite(http.SameSiteNoneMode)
+				c.SetCookie("auth_token", tokenString, 3600*24, "/", database.GetEnv("COOKIE_DOMAIN", ""), true, true)
 			}
 		}
-
 	}
 
 	// [RESEARCH LOGIC] สร้าง SessionID และเริ่มบันทึก Journey
