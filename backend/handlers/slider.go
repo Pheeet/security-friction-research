@@ -153,13 +153,13 @@ func GenerateSliderCaptcha(c *gin.Context) {
 	bgBase64 := imgToBase64(bgImg)
 	pieceBase64 := imgToPNGBase64(pieceImg)
 
-	// 7. บันทึกลง session
-	sessionID, exists := c.Get("research_session_id")
-	if !exists {
-		sessionID = "Unknown"
+	// 7. ใช้ UserID เป็น Key ในการจำคำตอบแทน Session
+	userID := c.Query("userId")
+	if userID == "" {
+		userID = "UnknownUser" // กันเหนียว
 	}
 
-	StoreSliderAnswer(sessionID.(string), targetX)
+	StoreSliderAnswer(userID, targetX) // เซฟคำตอบโดยผูกกับ userID
 
 	c.JSON(http.StatusOK, SliderResponse{
 		OriginalImage: bgBase64,
@@ -168,7 +168,6 @@ func GenerateSliderCaptcha(c *gin.Context) {
 		Width:         BoxWidth,
 		Height:        BoxHeight,
 	})
-
 }
 
 func imgToBase64(img image.Image) string {
@@ -232,23 +231,21 @@ func VerifySlider(c *gin.Context) {
 		return
 	}
 
-	// 1. ดึง Session ID
-	sessionID, exists := c.Get("research_session_id")
-	if !exists {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Session missing"})
-		return
+	// 1. ดึง Session ID (แค่เอาไว้เก็บลง Database เฉยๆ ไม่ได้ใช้ตรวจคำตอบแล้ว)
+	sessionStr := "UnknownSession"
+	if sessionID, exists := c.Get("research_session_id"); exists {
+		sessionStr = sessionID.(string)
 	}
 
-	// 2. ตรวจคำตอบ (เรียกฟังก์ชัน Helper ที่เราเขียนไว้แล้ว)
-	isCorrect := VerifySliderAnswer(sessionID.(string), req.X)
+	// 2. ตรวจคำตอบ โดยใช้ req.UserID แทน (แม่นยำ 100% ข้ามโดเมนได้)
+	isCorrect := VerifySliderAnswer(req.UserID, req.X)
 
 	// 3. บันทึกลง Database
-	// หมายเหตุ: CaptchaID ของ Slider อาจจะไม่มี (เพราะเรา Gen สด) ใส่เป็น "slider_gen" แทนได้ครับ
 	database.DB.Create(&database.ResearchLog{
-		SessionID:   sessionID.(string),
+		SessionID:   sessionStr,
 		CaptchaType: "slider",
 		CaptchaID:   "generated",
-		UserInput:   fmt.Sprintf("%d", req.X), // เก็บค่า X ที่ User ลาก
+		UserInput:   fmt.Sprintf("%d", req.X),
 		IsCorrect:   isCorrect,
 		TimeTaken:   req.TimeTaken,
 	})
