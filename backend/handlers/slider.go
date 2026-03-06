@@ -214,15 +214,15 @@ func VerifySliderAnswer(sessionID string, userAnswer int) bool {
 
 	maxMovableBackend := float64(BoxWidth - PuzzleWidth)
 	correctPercentage := (float64(correctX) / maxMovableBackend) * 100.0
-	// userPercentage := float64(userAnswer)
-	userPercentage := (float64(userAnswer) / maxMovableBackend) * 100.0
+
+	// รับค่ามาเป็น % แล้ว เอามาเทียบได้เลย
+	userPercentage := float64(userAnswer)
 
 	diff := correctPercentage - userPercentage
 	if diff < 0 {
 		diff = -diff
 	}
 
-	// 🛡️ REFACTOR: Increased tolerance to 7% for mobile and screen scaling
 	return diff <= 7.0
 }
 
