@@ -183,11 +183,14 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = () => {
-    document.cookie = `experiment_mode=${experimentMode}; path=/; max-age=3600`;
-    document.cookie = `sso_start_time=${absoluteStartTime.current}; path=/; max-age=3600`;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+    
+    // แนบค่าพฤติกรรมไปกับ URL เลย
+    const query = `?mode=${experimentMode}&mouse=${mouseMoved}&paste=${hasPasted}&bs=${backspaceCount}&time=${absoluteStartTime.current}`;
+
     setIsAnalyzing(true);
     setTimeout(() => {
-      window.location.href = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}/api/auth/google/login`;
+      window.location.href = `${apiUrl}/api/auth/google/login${query}`;
     }, 1500);
   };
 
