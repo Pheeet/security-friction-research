@@ -33,11 +33,11 @@ function SliderContent() {
       console.log('Adaptive Mode: Skipping 2FA -> Go to Survey');
       setIsVerifying(true); 
       setTimeout(() => {
-        window.location.href = '/survey'; 
+        router.push('/survey'); // หรือ router.replace('/survey')
       }, 2000);
       return;
     }
-
+    
     try {
       const res = await fetch(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")}/api/2fa/request`, {
         method: 'POST',
