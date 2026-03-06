@@ -458,7 +458,6 @@ func CalculateRiskScore(req LoginRequest) (string, string) {
 
 	// 🕵️‍♂️ ปริ้นท์ Log ออกมาดูเลยว่าทำไมคนนี้ถึงได้แต้มเท่านี้!
 	fmt.Printf("\n--- [ADAPTIVE CALCULATION] ---\n")
-	fmt.Printf("User Payload: %+v\n", req)
 	fmt.Printf("Total Score: %d | Reasons: %s\n", score, reason)
 
 	// ประเมินระดับความเสี่ยงจากคะแนนรวม
