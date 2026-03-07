@@ -256,14 +256,7 @@ func LoginHandler(c *gin.Context) {
 			})
 			if tokenString, err := token.SignedString([]byte(secret)); err == nil {
 				generatedToken = tokenString
-				isProd := database.GetEnv("ENV", "development") == "production"
-				if isProd {
-					c.SetSameSite(http.SameSiteNoneMode)
-					c.SetCookie("auth_token", tokenString, 3600*24, "/", "", true, true)
-				} else {
-					c.SetSameSite(http.SameSiteLaxMode)
-					c.SetCookie("auth_token", tokenString, 3600*24, "/", "", false, true)
-				}
+				utils.SetSecureCookie(c, "auth_token", tokenString, 3600*24)
 			}		}
 	}
 
@@ -365,14 +358,7 @@ func Verify2FAHandler(c *gin.Context) {
 		}
 
 		// 3. ตั้งค่า HttpOnly Cookie ระดับ Production
-		isProd := database.GetEnv("ENV", "development") == "production"
-		if isProd {
-			c.SetSameSite(http.SameSiteNoneMode)
-			c.SetCookie("auth_token", tokenString, 3600*24, "/", "", true, true)
-		} else {
-			c.SetSameSite(http.SameSiteLaxMode)
-			c.SetCookie("auth_token", tokenString, 3600*24, "/", "", false, true)
-		}
+		utils.SetSecureCookie(c, "auth_token", tokenString, 3600*24)
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
@@ -451,6 +437,11 @@ func SyncTokenHandler(c *gin.Context) {
 		}
 	}
 
+	if tokenString == "" {
+		c.JSON(http.StatusOK, gin.H{"token": "", "status": "waiting_for_2fa_or_sso"})
+		return
+	}
+	
 	c.JSON(http.StatusOK, gin.H{
 		"token": tokenString,
 	})

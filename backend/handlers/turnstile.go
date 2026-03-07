@@ -10,9 +10,9 @@ import (
 	"os"
 	"strconv"
 	"time"
-	_ "time"
 
 	"backend-api/database"
+	"backend-api/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -112,14 +112,7 @@ func VerifyTurnstile(c *gin.Context) {
 					"exp":     time.Now().Add(time.Hour * 24).Unix(),
 				})
 				if tokenString, err := token.SignedString([]byte(secret)); err == nil {
-					isProd := database.GetEnv("ENV", "development") == "production"
-					if isProd {
-						c.SetSameSite(http.SameSiteNoneMode)
-						c.SetCookie("auth_token", tokenString, 3600*24, "/", "", true, true)
-					} else {
-						c.SetSameSite(http.SameSiteLaxMode)
-						c.SetCookie("auth_token", tokenString, 3600*24, "/", "", false, true)
-					}
+					utils.SetSecureCookie(c, "auth_token", tokenString, 3600*24)
 				}
 			}
 		}

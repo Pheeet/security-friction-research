@@ -4,6 +4,7 @@ package main
 import (
 	"log"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -33,6 +34,7 @@ func main() {
 	r := gin.Default()
 
 	frontendURL := database.GetEnv("FRONTEND_URL", "http://localhost:3000")
+	frontendURL = strings.TrimSuffix(frontendURL, "/")
 
 	// 2. แก้ปัญหา CORS (ให้ Frontend ยิงเข้ามาได้)
 	config := cors.DefaultConfig()
@@ -75,7 +77,7 @@ func main() {
 		// 2FA & Google SSO
 		api.GET("/auth/google/login", handlers.GoogleLogin)
 		api.GET("/auth/google/callback", handlers.GoogleCallback)
-		api.GET("/auth/token-sync", middleware.AuthMiddleware(), handlers.SyncTokenHandler)
+		api.GET("/auth/token-sync", handlers.SyncTokenHandler)
 		api.POST("/2fa/request", authLimit, handlers.RequestOTPHandler)
 		api.POST("/2fa/verify", authLimit, handlers.Verify2FAHandler) // ตัวนี้เป็นคนแจก JWT
 		api.GET("/2fa/check-push", handlers.CheckPushStatus)

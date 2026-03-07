@@ -3,6 +3,7 @@ package middleware
 
 import (
 	"backend-api/database"
+	"backend-api/utils"
 	"net/http"
 	"strings"
 
@@ -50,18 +51,12 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		if err != nil || !token.Valid {
 			// ถ้า Token หมดอายุ หรือถูกปลอมแปลง ให้ล้างคุกกี้ทิ้งซะ
-			isProd := database.GetEnv("ENV", "development") == "production"
-			if isProd {
-				c.SetSameSite(http.SameSiteNoneMode)
-				c.SetCookie("auth_token", "", -1, "/", "", true, true)
-			} else {
-				c.SetSameSite(http.SameSiteLaxMode)
-				c.SetCookie("auth_token", "", -1, "/", "", false, true)
-			}
+			utils.SetSecureCookie(c, "auth_token", "", -1)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid or expired token"})
 			c.Abort()
 			return
 		}
+
 
 		// 🟢 4. แกะข้อมูล UserID ออกมาเก็บไว้ใน Context เพื่อให้ API อื่นๆ เอาไปใช้งานต่อได้
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
