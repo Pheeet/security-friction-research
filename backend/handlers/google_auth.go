@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"backend-api/database"
+	"backend-api/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -168,15 +169,8 @@ func GoogleCallback(c *gin.Context) {
 			if t, err := token.SignedString([]byte(secret)); err == nil {
 				tokenString = t
 
-				// 💡 ตั้งค่า Cookie แบบปลอดภัยสำหรับ Production ข้ามโดเมน
-				isProd := database.GetEnv("ENV", "development") == "production"
-				if isProd {
-					c.SetSameSite(http.SameSiteNoneMode)
-					c.SetCookie("auth_token", tokenString, 3600*24, "/", "", true, true)
-				} else {
-					c.SetSameSite(http.SameSiteLaxMode)
-					c.SetCookie("auth_token", tokenString, 3600*24, "/", "", false, true)
-				}
+				// 💡 ตั้งค่า Cookie แบบปลอดภัยผ่าน utils
+				utils.SetSecureCookie(c, "auth_token", tokenString, 3600*24)
 			}
 		}
 	}
@@ -203,10 +197,10 @@ func GoogleCallback(c *gin.Context) {
 
 	frontendURL := database.GetEnv("FRONTEND_URL", "http://localhost:3000")
 
-	// ⭐ แนบ Token และข้อมูลทั้งหมดไปกับ URL ให้หน้า Checkpoint
+	// ⭐ แนบข้อมูลทั้งหมดไปกับ URL ให้หน้า Checkpoint (ไม่ส่ง Token ไปทาง URL แล้ว)
 	checkpointURL := fmt.Sprintf(
-		"%s/security-checkpoint?userId=%d&method=email&mode=%s&risk=%s&captcha=%s&req2fa=%s&token=%s",
-		frontendURL, user.ID, experimentMode, riskLevel, captchaType, require2FA, tokenString,
+		"%s/security-checkpoint?userId=%d&method=email&mode=%s&risk=%s&captcha=%s&req2fa=%s",
+		frontendURL, user.ID, experimentMode, riskLevel, captchaType, require2FA,
 	)
 
 	// เปลี่ยนเป็น StatusFound (302) ปลอดภัยกว่า

@@ -49,10 +49,17 @@ export default function LoginPage() {
   const [experimentMode, setExperimentMode] = useState('static');
 
   const [mouseMoved, setMouseMoved] = useState(false);
+  const [mouseEventCount, setMouseEventCount] = useState(0);
+  const [isDataReady, setIsDataReady] = useState(false);
   const [backspaceCount, setBackspaceCount] = useState(0);
 
   useEffect(() => {
     absoluteStartTime.current = Date.now();
+
+    // 🛡️ RACE CONDITION FIX: Minimum wait time to ensure some data is captured
+    const readyTimer = setTimeout(() => {
+      setIsDataReady(true);
+    }, 800);
 
     // 1. ฟังก์ชันตัวช่วยสำหรับดึงค่าจาก Cookie (ชัวร์กว่า Session Storage)
     const getCookie = (name: string) => {
@@ -79,18 +86,29 @@ export default function LoginPage() {
     }
 
     // --- โค้ดส่วนดักจับเมาส์และคีย์บอร์ด ด้านล่างนี้ปล่อยไว้เหมือนเดิมครับ ---
-    const handleHumanInteraction = () => {
+    const handleHumanInteraction = (e: MouseEvent | TouchEvent) => {
       setMouseMoved(true);
-      window.removeEventListener('mousemove', handleHumanInteraction);
-      window.removeEventListener('touchstart', handleHumanInteraction);
+      
+      if (e.type === 'mousemove') {
+        setMouseEventCount(prev => {
+          const newCount = prev + 1;
+          if (newCount >= 15) {
+            setIsDataReady(true);
+          }
+          return newCount;
+        });
+      } else {
+        setIsDataReady(true);
+      }
     };
 
-    window.addEventListener('mousemove', handleHumanInteraction);
-    window.addEventListener('touchstart', handleHumanInteraction);
+    window.addEventListener('mousemove', handleHumanInteraction as any);
+    window.addEventListener('touchstart', handleHumanInteraction as any);
 
     return () => {
-      window.removeEventListener('mousemove', handleHumanInteraction);
-      window.removeEventListener('touchstart', handleHumanInteraction);
+      clearTimeout(readyTimer);
+      window.removeEventListener('mousemove', handleHumanInteraction as any);
+      window.removeEventListener('touchstart', handleHumanInteraction as any);
     };
 
   }, []);
@@ -182,6 +200,13 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = () => {
+    if (!isDataReady || !mouseMoved) {
+      setLoginError('Please interact with the page (move mouse) before signing in.');
+      setIsShaking(true);
+      setTimeout(() => setIsShaking(false), 500);
+      return;
+    }
+
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
     
     // แนบค่าพฤติกรรมไปกับ URL เลย
@@ -266,8 +291,36 @@ export default function LoginPage() {
         
         <h1 style={{ fontSize: '2rem', marginBottom: '2rem', fontWeight: 'bold' }}>Login</h1>
 
-        <button type="button" onClick={handleGoogleLogin} style={{ width: '100%', padding: '12px', borderRadius: '4px', border: '1px solid #333', backgroundColor: '#ffffff', color: '#333', fontSize: '1rem', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem' }}>
-          <GoogleIcon /> Sign in with Google
+        <button 
+          type="button" 
+          onClick={handleGoogleLogin} 
+          disabled={!isDataReady}
+          style={{ 
+            width: '100%', 
+            padding: '12px', 
+            borderRadius: '4px', 
+            border: '1px solid #333', 
+            backgroundColor: '#ffffff', 
+            color: '#333', 
+            fontSize: '1rem', 
+            fontWeight: '500', 
+            cursor: isDataReady ? 'pointer' : 'not-allowed', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            marginBottom: '1.5rem',
+            opacity: isDataReady ? 1 : 0.6,
+            transition: 'opacity 0.3s'
+          }}
+        >
+          {!isDataReady ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '18px', height: '18px', border: '2px solid rgba(0, 0, 0, 0.1)', borderTop: '2px solid #333', borderRadius: '50%', animation: 'spin-circle 1s linear infinite' }} />
+              <span>Initializing...</span>
+            </div>
+          ) : (
+            <><GoogleIcon /> Sign in with Google</>
+          )}
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem', color: '#e0e0e0' }}>

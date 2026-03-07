@@ -12,6 +12,7 @@ export default function WelcomePage() {
     sessionStorage.clear();
     document.cookie = "experiment_mode=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}/api/logout`, { method: 'POST', credentials: 'include' }).catch(console.error);
   }, []);
 
   const handleStartTest = () => {

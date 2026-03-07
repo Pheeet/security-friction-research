@@ -28,6 +28,11 @@ export default function ThankYouPage() {
         method: 'POST',
         credentials: 'include'
       });
+      // Clear via Go Backend
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}/api/logout`, { 
+        method: 'POST',
+        credentials: 'include'
+      });
     } catch (error) {
       console.error("Logout failed:", error);
     }

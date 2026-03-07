@@ -3,6 +3,7 @@
 
 import { useState, useEffect, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import api from '../utils/api';
 
 const CheckpointLoadingUI = ({ message = "Preparing Security Challenge...", subMessage = "ระบบกำลังเตรียมด่านทดสอบความปลอดภัยที่เหมาะสม", color = "blue-600" }) => (
   <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -22,42 +23,62 @@ function CheckpointRedirector() {
   const [loadingState, setLoadingState] = useState<'preparing' | 'clearing'>('preparing');
   const [isMounted, setIsMounted] = useState(false);
 
+  // 🛡️ SESSION SYNC: Restore token to sessionStorage from HttpOnly cookie if needed
+  useEffect(() => {
+    const syncSession = async () => {
+      const existingToken = sessionStorage.getItem('token');
+      if (!existingToken) {
+        try {
+          const res = await api.get('/api/auth/token-sync');
+          if (res.data.token) {
+            sessionStorage.setItem('token', res.data.token);
+            console.log("🛡️ Session Synced: Token restored to sessionStorage from Secure Cookie.");
+          }
+        } catch (err) {
+          console.warn("🛡️ Session Sync failed: No active session cookie found.");
+        }
+      }
+    };
+    if (isMounted) syncSession();
+  }, [isMounted]);
+
   useEffect(() => {
     setIsMounted(true);
     if (hasRedirected.current) return;
 
     // 1. ดึงค่าที่ส่งมาจากหน้า Login หรือ Google SSO
-    const urlToken = searchParams.get('token');
-    if (urlToken) {
-      sessionStorage.setItem('token', urlToken);
-      
-      // 🛡️ [เพิ่มบรรทัดนี้] สร้างคุกกี้ให้ Vercel (Next.js Middleware) รู้จัก Token นี้ด้วย!
-      const cookiePolicy = process.env.NODE_ENV === "production" ? "; SameSite=None; Secure" : "; SameSite=Lax";
-      document.cookie = `auth_token=${urlToken}; path=/; max-age=86400${cookiePolicy}`;
-    }
-    
-    const userId = searchParams.get('userId');
-    const method = searchParams.get('method') || 'email';
-
-    let numericUserId = 0;
-
-    if (userId) {
-      // ถ้ามีใน URL ให้แอบเก็บลงกระเป๋าให้เรียบร้อย
-      numericUserId = parseInt(userId, 10);
-    } else {
-      // ถ้าไม่มีใน URL ให้ดึงจากกระเป๋าที่ Login ยัดไว้ให้
-      const sessionUserId = sessionStorage.getItem('secure_user_id');
-      numericUserId = parseInt(sessionUserId || '0', 10);
-    }
-
-    sessionStorage.setItem('secure_user_id', numericUserId.toString());
-
-    // 2. จัดการกับ URL Params ของ Captcha และ 2FA
+    const urlUserId = searchParams.get('userId');
+    const urlMethod = searchParams.get('method');
+    const urlMode = searchParams.get('mode');
+    const urlRisk = searchParams.get('risk');
     const urlCaptcha = searchParams.get('captcha');
     const urlReq2FA = searchParams.get('req2fa');
 
-    if (urlCaptcha) sessionStorage.setItem('captcha_type', urlCaptcha);
-    if (urlReq2FA) sessionStorage.setItem('require_2fa', urlReq2FA);
+    // 🛡️ SSO CALLBACK CLEANUP: Clean URL immediately if params are present
+    if (urlMode || urlRisk || urlCaptcha) {
+      if (urlUserId) sessionStorage.setItem('secure_user_id', urlUserId);
+      if (urlMethod) sessionStorage.setItem('2fa_method', urlMethod);
+      if (urlMode) sessionStorage.setItem('experiment_mode', urlMode);
+      if (urlRisk) sessionStorage.setItem('risk_level', urlRisk);
+      if (urlCaptcha) sessionStorage.setItem('captcha_type', urlCaptcha);
+      if (urlReq2FA) sessionStorage.setItem('require_2fa', urlReq2FA);
+
+      // c. IMMEDIATELY remove all query parameters from address bar
+      router.replace('/security-checkpoint');
+      return;
+    }
+
+    // 2. ถ้า URL ถูกทำความสะอาดแล้ว ให้ดึงค่าจาก sessionStorage
+    const userId = searchParams.get('userId') || sessionStorage.getItem('secure_user_id');
+    const method = searchParams.get('method') || sessionStorage.getItem('2fa_method') || 'email';
+    const assignedCaptcha = searchParams.get('captcha') || sessionStorage.getItem('captcha_type');
+    const require2FA = searchParams.get('req2fa') || sessionStorage.getItem('require_2fa');
+
+    let numericUserId = 0;
+    if (userId) {
+      numericUserId = parseInt(userId, 10);
+      sessionStorage.setItem('secure_user_id', numericUserId.toString());
+    }
 
     // 💡 3. ฟังก์ชันตัวช่วยดึง Cookie ป้องกัน Session หายตอนเปลี่ยนหน้า
     const getCookie = (name: string) => {
@@ -76,9 +97,6 @@ function CheckpointRedirector() {
     if (experimentMode === 'adaptive') {
       sessionStorage.setItem('experiment_mode', 'adaptive');
     }
-
-    const assignedCaptcha = sessionStorage.getItem('captcha_type');
-    const require2FA = sessionStorage.getItem('require_2fa');
 
     let selectedRoute = '';
     const routes = ['text', 'math', 'slider', 'cloudflare'];

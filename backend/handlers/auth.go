@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"backend-api/database"
+	"backend-api/utils"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 	"unicode"
 
@@ -198,6 +200,12 @@ func RegisterHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "สมัครสมาชิกสำเร็จ!"})
+}
+
+// LogoutHandler
+func LogoutHandler(c *gin.Context) {
+	utils.SetSecureCookie(c, "auth_token", "", -1) // Clear the cookie
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Logged out successfully"})
 }
 
 // LoginHandler
@@ -422,6 +430,29 @@ func GetUserHandler(c *gin.Context) {
 		"id":       user.ID,
 		"username": user.Username,
 		"email":    user.Email,
+	})
+}
+
+// SyncTokenHandler returns the current token if the user is already authenticated via cookie.
+// This allows the frontend to populate sessionStorage if needed.
+func SyncTokenHandler(c *gin.Context) {
+	// If it reached here, AuthMiddleware already validated the token.
+	// We just need to extract it from the Request (Header or Cookie).
+	var tokenString string
+	authHeader := c.GetHeader("Authorization")
+	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+		tokenString = strings.TrimPrefix(authHeader, "Bearer ")
+	}
+
+	if tokenString == "" {
+		cookieToken, err := c.Cookie("auth_token")
+		if err == nil {
+			tokenString = cookieToken
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"token": tokenString,
 	})
 }
 

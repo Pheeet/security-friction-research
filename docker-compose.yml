@@ -45,7 +45,7 @@ services:
     container_name: nextjs-captcha-frontend
 
     ports:
-      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+      - "3000:3000"
     
     volumes:
       - ./frontend:/app
@@ -54,8 +54,8 @@ services:
 
     environment:
       - NODE_OPTIONS=--max-old-space-size=4096 --dns-result-order=ipv4first
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=false
+      - WATCHPACK_POLLING=false
       - NEXT_PUBLIC_TURNSTILE_SITE_KEY=${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
     
     depends_on:

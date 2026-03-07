@@ -36,7 +36,7 @@ func main() {
 
 	// 2. แก้ปัญหา CORS (ให้ Frontend ยิงเข้ามาได้)
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{frontendURL}
+	config.AllowOrigins = []string{frontendURL, "http://localhost:3000", "http://127.0.0.1:3000"}
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization", "Accept", "Cookie"}
 	config.ExposeHeaders = []string{"Content-Length", "Set-Cookie"}
@@ -58,6 +58,7 @@ func main() {
 		authLimit := middleware.RateLimitMiddleware(rate.Every(time.Minute/5), 10)
 
 		api.POST("/login", authLimit, handlers.LoginHandler)
+		api.POST("/logout", handlers.LogoutHandler)
 		api.POST("/register", authLimit, handlers.RegisterHandler)
 		api.GET("/check-availability", handlers.CheckAvailabilityHandler)
 
@@ -74,6 +75,7 @@ func main() {
 		// 2FA & Google SSO
 		api.GET("/auth/google/login", handlers.GoogleLogin)
 		api.GET("/auth/google/callback", handlers.GoogleCallback)
+		api.GET("/auth/token-sync", middleware.AuthMiddleware(), handlers.SyncTokenHandler)
 		api.POST("/2fa/request", authLimit, handlers.RequestOTPHandler)
 		api.POST("/2fa/verify", authLimit, handlers.Verify2FAHandler) // ตัวนี้เป็นคนแจก JWT
 		api.GET("/2fa/check-push", handlers.CheckPushStatus)
