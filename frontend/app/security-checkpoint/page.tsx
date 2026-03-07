@@ -46,6 +46,8 @@ function CheckpointRedirector() {
           const res = await api.get('/api/auth/token-sync' + (urlSessionId ? '?sessionId=' + urlSessionId : ''));
           if (res.data.token) {
             sessionStorage.setItem('token', res.data.token);
+            // STAMP FIRST-PARTY COOKIE FOR NEXT.JS MIDDLEWARE
+            document.cookie = `auth_token=${res.data.token}; path=/; max-age=86400; SameSite=Lax; Secure`;
             console.log("🛡️ Session Synced: Token restored to sessionStorage.");
           }
         } catch (err) {
