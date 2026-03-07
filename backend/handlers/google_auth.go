@@ -199,8 +199,8 @@ func GoogleCallback(c *gin.Context) {
 
 	// ⭐ แนบข้อมูลทั้งหมดไปกับ URL ให้หน้า Checkpoint (ไม่ส่ง Token ไปทาง URL แล้ว)
 	checkpointURL := fmt.Sprintf(
-		"%s/security-checkpoint?userId=%d&method=email&mode=%s&risk=%s&captcha=%s&req2fa=%s",
-		frontendURL, user.ID, experimentMode, riskLevel, captchaType, require2FA,
+		"%s/security-checkpoint?userId=%d&method=email&mode=%s&risk=%s&captcha=%s&req2fa=%s&sessionId=%s",
+		frontendURL, user.ID, experimentMode, riskLevel, captchaType, require2FA, sessionID,
 	)
 
 	// เปลี่ยนเป็น StatusFound (302) ปลอดภัยกว่า

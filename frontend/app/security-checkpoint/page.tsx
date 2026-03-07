@@ -20,12 +20,26 @@ function CheckpointRedirector() {
   const searchParams = useSearchParams();
   const hasRedirected = useRef(false);
 
-  const [loadingState, setLoadingState] = useState<'preparing' | 'clearing'>('preparing');
+  const [loadingState, setLoadingState] = useState<'syncing' | 'preparing' | 'clearing'>('syncing');
+  const [isSyncComplete, setIsSyncComplete] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  // 🛡️ SESSION SYNC: Restore token to sessionStorage from HttpOnly cookie if needed
   useEffect(() => {
-    const syncSession = async () => {
+    setIsMounted(true);
+  }, []);
+
+  // 🛡️ SESSION SYNC: Restore token and extract sessionId
+  useEffect(() => {
+    if (!isMounted) return;
+
+    const syncAndExtract = async () => {
+      // 1. Extract sessionId IMMEDIATELY (Crucial for SSO context loss prevention)
+      const urlSessionId = searchParams.get('sessionId');
+      if (urlSessionId) {
+        sessionStorage.setItem('sessionId', urlSessionId);
+      }
+
+      // 2. Restore token to sessionStorage from HttpOnly cookie
       const existingToken = sessionStorage.getItem('token');
       if (!existingToken) {
         try {
@@ -38,13 +52,16 @@ function CheckpointRedirector() {
           console.warn("🛡️ Session Sync failed: No active session cookie found.");
         }
       }
+      
+      setIsSyncComplete(true);
+      setLoadingState('preparing');
     };
-    if (isMounted) syncSession();
-  }, [isMounted]);
+
+    syncAndExtract();
+  }, [isMounted, searchParams]);
 
   useEffect(() => {
-    setIsMounted(true);
-    if (hasRedirected.current) return;
+    if (!isSyncComplete || hasRedirected.current) return;
 
     // 1. ดึงค่าที่ส่งมาจากหน้า Login หรือ Google SSO
     const urlUserId = searchParams.get('userId');
@@ -104,22 +121,22 @@ function CheckpointRedirector() {
     // 🚦 4. แยกทางแยกระหว่าง Adaptive กับ Static อย่างเด็ดขาด
     if (experimentMode === 'adaptive') {
       // 🟢 บล็อกโหมด Adaptive
-      if (assignedCaptcha === 'none' && require2FA === 'false') {
+      if (assignedCaptcha && assignedCaptcha !== 'none') {
+        // Medium/High Risk: ไปด่านที่ Backend สั่งมา (ด่านจะตัดสินเองว่าจะไป 2FA ต่อไหม)
+        selectedRoute = assignedCaptcha;
+        console.log(`🛡️ Adaptive Mode: Backend assigned -> ${selectedRoute}`);
+      } else if (require2FA === 'true') {
+        // Fallback: ถ้าไม่มีด่านแต่ต้องทำ 2FA (ปกติ Backend จะส่ง captcha มาด้วยสำหรับ high risk)
+        selectedRoute = '2fa';
+        console.log(`🛡️ Adaptive Mode: require_2fa is true -> Redirecting to 2FA Challenge`);
+      } else {
         // Low Risk: ปล่อยผ่านไป Survey
         setLoadingState('clearing'); 
         setTimeout(() => {
-          window.location.href = '/survey'; 
+          router.replace('/survey'); 
         }, 2000); 
         hasRedirected.current = true;
         return; 
-      } else if (assignedCaptcha && assignedCaptcha !== 'none') {
-        // Medium/High Risk: ไปด่านที่ Backend สั่งมา
-        selectedRoute = assignedCaptcha;
-        console.log(`🛡️ Adaptive Mode: Backend assigned -> ${selectedRoute}`);
-      } else {
-        // กันเหนียว: เผื่อข้อมูล assignedCaptcha หาย ให้สุ่มด่านไปก่อน แต่ต้องไม่บันทึกว่าเป็น Static
-        selectedRoute = routes[Math.floor(Math.random() * routes.length)];
-        console.log(`🛡️ Adaptive Mode (Fallback): Random assigned -> ${selectedRoute}`);
       }
 
     } else {
@@ -143,15 +160,30 @@ function CheckpointRedirector() {
 
     hasRedirected.current = true;
 
-    // 5. ทำการ Redirect ไปหน้า Captcha ที่เลือกไว้
+    // 5. ทำการ Redirect ไปหน้า Captcha หรือ 2FA ที่เลือกไว้
     setTimeout(() => {
-      router.replace(`/captcha/${selectedRoute}?method=${method}`);
+      if (selectedRoute === '2fa') {
+        router.replace(`/2fa/challenge?method=${method}`);
+      } else {
+        router.replace(`/captcha/${selectedRoute}?method=${method}`);
+      }
     }, 2000);
     
-  }, [router, searchParams]);
+  }, [router, searchParams, isSyncComplete]);
 
   if (!isMounted) {
     return <CheckpointLoadingUI />;
+  }
+
+  // UI สำหรับจังหวะ Sync Session
+  if (loadingState === 'syncing') {
+    return (
+      <CheckpointLoadingUI 
+        message="Verifying Session..." 
+        subMessage="กำลังตรวจสอบความถูกต้องของเซสชันเพื่อความปลอดภัย" 
+        color="indigo-600" 
+      />
+    );
   }
 
   // UI สำหรับจังหวะข้ามไป Survey (Low Risk)
