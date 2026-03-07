@@ -43,13 +43,13 @@ function CheckpointRedirector() {
       const existingToken = sessionStorage.getItem('token');
       if (!existingToken) {
         try {
-          const res = await api.get('/api/auth/token-sync');
+          const res = await api.get('/api/auth/token-sync' + (urlSessionId ? '?sessionId=' + urlSessionId : ''));
           if (res.data.token) {
             sessionStorage.setItem('token', res.data.token);
-            console.log("🛡️ Session Synced: Token restored to sessionStorage from Secure Cookie.");
+            console.log("🛡️ Session Synced: Token restored to sessionStorage.");
           }
         } catch (err) {
-          console.warn("🛡️ Session Sync failed: No active session cookie found.");
+          console.warn("🛡️ Session Sync failed: No active session or valid claim ticket found.");
         }
       }
       

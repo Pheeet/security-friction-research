@@ -437,11 +437,37 @@ func SyncTokenHandler(c *gin.Context) {
 		}
 	}
 
+	// SSO Claim Ticket Pattern
+	sessionID := c.Query("sessionId")
+	if tokenString == "" && sessionID != "" {
+		var journey database.ResearchJourney
+		if err := database.DB.Where("session_id = ?", sessionID).First(&journey).Error; err == nil {
+			// Found the journey, redeem the token for this user
+			secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+				"user_id": journey.UserID,
+				"exp":     time.Now().Add(time.Hour * 24).Unix(),
+			})
+
+			if tString, err := token.SignedString([]byte(secret)); err == nil {
+				tokenString = tString
+				// Also set cookie for future requests
+				utils.SetSecureCookie(c, "auth_token", tokenString, 3600*24)
+
+				c.JSON(http.StatusOK, gin.H{
+					"token":  tokenString,
+					"status": "redeemed_via_session",
+				})
+				return
+			}
+		}
+	}
+
 	if tokenString == "" {
 		c.JSON(http.StatusOK, gin.H{"token": "", "status": "waiting_for_2fa_or_sso"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"token": tokenString,
 	})
