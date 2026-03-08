@@ -162,7 +162,7 @@ export default function LoginPage() {
 
         if (res.ok) {
             sessionStorage.setItem('secure_user_id', data.user_id.toString());
-            sessionStorage.setItem('userEmail', data.email || ''); // 🛡️ Store email for 2FA display
+            sessionStorage.setItem('userEmail', data.masked_email || '');
 
             sessionStorage.setItem('require_2fa', data.require_2fa.toString());
             sessionStorage.setItem('captcha_type', data.captcha_type || ''); 
