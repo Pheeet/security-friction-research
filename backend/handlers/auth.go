@@ -3,7 +3,6 @@ package handlers
 
 import (
 	"backend-api/database"
-	"backend-api/utils"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -11,7 +10,6 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 	"unicode"
 
@@ -147,13 +145,13 @@ type TwoFAResponse struct {
 	Message        string `json:"message"`
 	Require2FA     bool   `json:"require_2fa"`
 	UserID         uint   `json:"user_id"`
-	Email          string `json:"email"` // 🛡️ Masked email for 2FA display
 	Method         string `json:"method"` // email, push
 	SessionID      string `json:"session_id"`
 	ExperimentMode string `json:"experiment_mode"`
 	RiskLevel      string `json:"risk_level"`
 	CaptchaType    string `json:"captcha_type"`
 	Token          string `json:"token"`
+	MaskedEmail    string `json:"masked_email"`
 }
 
 // RegisterHandler
@@ -203,12 +201,6 @@ func RegisterHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "สมัครสมาชิกสำเร็จ!"})
 }
 
-// LogoutHandler
-func LogoutHandler(c *gin.Context) {
-	utils.SetSecureCookie(c, "auth_token", "", -1) // Clear the cookie
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Logged out successfully"})
-}
-
 // LoginHandler
 func LoginHandler(c *gin.Context) {
 	var creds LoginRequest
@@ -250,15 +242,30 @@ func LoginHandler(c *gin.Context) {
 
 		// ✅ แก้เป็น: แจกให้ทั้ง low และ medium
 		if riskLevel == "low" || riskLevel == "medium" {
-			secret := os.Getenv("JWT_SECRET")
+			secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 				"user_id": user.ID,
 				"exp":     time.Now().Add(time.Hour * 24).Unix(),
 			})
 			if tokenString, err := token.SignedString([]byte(secret)); err == nil {
 				generatedToken = tokenString
-				utils.SetSecureCookie(c, "auth_token", tokenString, 3600*24)
-			}		}
+				// 1. 🌟 ต้องประกาศ SameSite เป็น None ก่อน เพื่ออนุญาตให้ข้ามโดเมน Vercel <-> Render ได้
+				c.SetSameSite(http.SameSiteNoneMode)
+
+				// 2. Set Cookie ตามปกติ แต่บังคับ Secure เป็น true ไปเลยบน Production
+				isProduction := database.GetEnv("ENV", "development") == "production"
+
+				c.SetCookie(
+					"auth_token",
+					tokenString,
+					3600*24,
+					"/",
+					database.GetEnv("COOKIE_DOMAIN", ""), // แนะนำให้ปล่อยเป็น "" (ค่าว่าง) ไว้ครับ
+					isProduction,                         // ถ้าเป็น Production ต้องเป็น true เท่านั้น
+					true,                                 // HttpOnly = true ป้องกัน XSS
+				)
+			}
+		}
 	}
 
 	// [RESEARCH LOGIC] สร้าง SessionID และเริ่มบันทึก Journey
@@ -288,13 +295,13 @@ func LoginHandler(c *gin.Context) {
 		Message:        "Please complete security check",
 		Require2FA:     require2FA,
 		UserID:         user.ID,
-		Email:          maskEmail(user.Email), // 🛡️ Zero URL Footprint: Masked Email in JSON
 		Method:         method,
 		SessionID:      sessionID,
 		ExperimentMode: experimentMode,
 		RiskLevel:      riskLevel,
 		CaptchaType:    captchaType,
 		Token:          generatedToken,
+		MaskedEmail:    maskEmail(user.Email),
 	})
 }
 
@@ -345,7 +352,7 @@ func Verify2FAHandler(c *gin.Context) {
 		database.DB.Save(&user)
 
 		// 1. เตรียม Secret Key
-		secret := os.Getenv("JWT_SECRET")
+		secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
 
 		// 2. สร้าง JWT Token อายุ 24 ชั่วโมง
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -360,7 +367,7 @@ func Verify2FAHandler(c *gin.Context) {
 		}
 
 		// 3. ตั้งค่า HttpOnly Cookie ระดับ Production
-		utils.SetSecureCookie(c, "auth_token", tokenString, 3600*24)
+		c.SetCookie("auth_token", tokenString, 3600*24, "/", database.GetEnv("COOKIE_DOMAIN", ""), database.GetEnv("ENV", "development") == "production", true)
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
@@ -404,39 +411,11 @@ func SimulatePushApprove(c *gin.Context) {
 
 // GetUserHandler สำหรับดึงข้อมูล User พื้นฐาน (เช่น Email) ไปโชว์ที่หน้า Frontend
 func GetUserHandler(c *gin.Context) {
-	userIDStr := c.Param("id")
-	
-	// 🛡️ SECURITY FIX: Prevent enumeration. 
-	// Since 2FA is not yet complete, we don't have a JWT, but we DO have a session_id cookie 
-	// or an X-Session-ID header (for Brave/cross-domain support).
-	
-	sessionID, err := c.Cookie("session_id")
-	if err != nil || sessionID == "" {
-		// Try header fallback for Brave/Vercel-Render cross-domain setup
-		sessionID = c.GetHeader("X-Session-ID")
-	}
-
-	if sessionID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: No valid session found"})
-		return
-	}
-
-	var journey database.ResearchJourney
-	// Find the most recent journey with this sessionID
-	if err := database.DB.Where("session_id = ?", sessionID).Order("created_at desc").First(&journey).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Session not found"})
-		return
-	}
-
-	// Check if the requested ID matches the session owner's ID
-	if fmt.Sprintf("%d", journey.UserID) != userIDStr {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden: You can only access your own data"})
-		return
-	}
-
+	userID := c.Param("id")
 	var user database.User
+
 	// ค้นหา user จาก database ด้วย ID
-	if err := database.DB.First(&user, journey.UserID).Error; err != nil {
+	if err := database.DB.First(&user, userID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
@@ -445,54 +424,7 @@ func GetUserHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"id":       user.ID,
 		"username": user.Username,
-		"email":    user.Email,
-	})
-}
-
-// SyncTokenHandler returns the current token if the user is already authenticated via cookie.
-// This allows the frontend to populate sessionStorage if needed.
-func SyncTokenHandler(c *gin.Context) {
-	// If it reached here, AuthMiddleware already validated the token.
-	// We just need to extract it from the Request (Header or Cookie).
-	code := c.Query("code")
-	if code != "" {
-		// ถ้ามี Code ให้ดึง Token ออกมาจาก Memory และลบตั๋วทิ้งทันที (One-time use)
-		if val, exists := TokenCache.LoadAndDelete(code); exists {
-			ticket := val.(syncTicket)
-			if time.Now().Before(ticket.expiresAt) {
-				tokenString := ticket.token
-				// ส่ง Token กลับไปให้ Frontend ถมลง Cookie ของตัวเอง
-				c.JSON(http.StatusOK, gin.H{"token": tokenString, "email": ticket.email})
-				return
-			}
-		}
-	}
-	
-	var tokenString string
-	authHeader := c.GetHeader("Authorization")
-	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
-		tokenString = strings.TrimPrefix(authHeader, "Bearer ")
-	}
-
-	// ถ้าไม่มีใน Header ลองหาใน Cookie
-	if tokenString == "" {
-		cookieToken, err := c.Cookie("auth_token")
-		if err == nil {
-			tokenString = cookieToken
-		}
-	}
-
-	// ❌ ลบบล็อกที่เอา SessionID ไปค้น Database แล้วเสก JWT ใหม่ออกไปแล้ว ❌
-
-	// ถ้ายังไม่มี Token แสดงว่ายังล็อกอินไม่สมบูรณ์ หรือ Cookie หลุด
-	if tokenString == "" {
-		c.JSON(http.StatusOK, gin.H{"token": "", "status": "waiting_for_2fa_or_sso"})
-		return
-	}
-
-	// ส่งคืน Token ให้ Frontend เอาไปใช้งาน
-	c.JSON(http.StatusOK, gin.H{
-		"token": tokenString,
+		"email":    maskEmail(user.Email),
 	})
 }
 
@@ -528,6 +460,7 @@ func CalculateRiskScore(req LoginRequest) (string, string) {
 
 	// 🕵️‍♂️ ปริ้นท์ Log ออกมาดูเลยว่าทำไมคนนี้ถึงได้แต้มเท่านี้!
 	fmt.Printf("\n--- [ADAPTIVE CALCULATION] ---\n")
+	fmt.Printf("User Payload: %+v\n", req)
 	fmt.Printf("Total Score: %d | Reasons: %s\n", score, reason)
 
 	// ประเมินระดับความเสี่ยงจากคะแนนรวม
