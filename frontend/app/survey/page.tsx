@@ -192,7 +192,7 @@ export default function SurveyPage() {
 
   const handleOptionChange = useCallback((questionId: string, value: number) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
-  }, []);
+  }, []); 
 
   // --- 🛡️ Optimization 3: หุ้ม useCallback ให้ฟังก์ชันจัดการ Demographic ---
   const handleDemographicChange = useCallback((e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
