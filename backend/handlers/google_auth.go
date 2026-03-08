@@ -164,7 +164,7 @@ func GoogleCallback(c *gin.Context) {
 
 		// 💡 แจก Token ทันทีให้กับกลุ่ม Low และ Medium
 		if riskLevel == "low" || riskLevel == "medium" {
-			secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
+			secret := os.Getenv("JWT_SECRET")
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 				"user_id": user.ID,
 				"exp":     time.Now().Add(time.Hour * 24).Unix(),

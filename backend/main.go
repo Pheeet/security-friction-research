@@ -29,6 +29,11 @@ func main() {
 
 	database.ConnectDB()
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("❌ FATAL: JWT_SECRET environment variable is NOT set. Stopping server for security.")
+	}
+
 	handlers.InitGoogleAuth() // อ่าน os.Getenv
 
 	r := gin.Default()

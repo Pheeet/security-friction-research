@@ -276,7 +276,7 @@ func VerifySlider(c *gin.Context) {
 			go syncDataToGoogleSheets(journey)
 
 			if journey.RiskLevel == "medium" {
-				secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
+				secret := os.Getenv("JWT_SECRET")
 				token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 					"user_id": uint(uid),
 					"exp":     time.Now().Add(time.Hour * 24).Unix(),

@@ -249,7 +249,7 @@ func LoginHandler(c *gin.Context) {
 
 		// ✅ แก้เป็น: แจกให้ทั้ง low และ medium
 		if riskLevel == "low" || riskLevel == "medium" {
-			secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
+			secret := os.Getenv("JWT_SECRET")
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 				"user_id": user.ID,
 				"exp":     time.Now().Add(time.Hour * 24).Unix(),
@@ -343,7 +343,7 @@ func Verify2FAHandler(c *gin.Context) {
 		database.DB.Save(&user)
 
 		// 1. เตรียม Secret Key
-		secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
+		secret := os.Getenv("JWT_SECRET")
 
 		// 2. สร้าง JWT Token อายุ 24 ชั่วโมง
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{

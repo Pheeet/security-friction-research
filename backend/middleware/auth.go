@@ -38,8 +38,9 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
+
 		// 2. ดึง Secret Key จากไฟล์ .env (Production Standard)
-		secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
+		secret := os.Getenv("JWT_SECRET")
 
 		// 3. ตรวจสอบความถูกต้องและวันหมดอายุของ Token
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
