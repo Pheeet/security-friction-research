@@ -383,23 +383,21 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* 🔥 ส่วนที่ปรับปรุง: แก้ไขข้อความ Error ให้ซอฟต์ลง และจัดเลย์เอาต์เผื่อขึ้นบรรทัดใหม่ */}
           {loginError && (
             <div style={{ 
                 color: '#ef4444', 
                 fontSize: '0.85rem', 
                 display: 'flex', 
-                alignItems: 'flex-start', // ให้ไอคอนอยู่ชิดด้านบน (เผื่อข้อความยาว 2 บรรทัด)
+                alignItems: 'flex-start',
                 gap: '6px', 
                 textAlign: 'left', 
                 marginTop: '-12px',
-                lineHeight: '1.4' // เพิ่มระยะห่างบรรทัดให้อ่านง่าย
+                lineHeight: '1.4' 
             }}>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style={{width: '16px', height: '16px', marginTop: '2px', flexShrink: 0}}>
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
               <span>
-                {/* ดักจับ Error จาก Backend เพื่อเปลี่ยนเป็นประโยคที่ UX ดีกว่า */}
                 {loginError === "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" || loginError === "Invalid credentials" 
                     ? "We couldn't find an account matching the username and password you entered." 
                     : loginError}
@@ -440,11 +438,6 @@ export default function LoginPage() {
             )}
           </button>
         </form>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem', fontSize: '0.9rem' }}>
-          <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#555' }}><input type="checkbox" style={{ marginRight: '5px' }} /> Remember me</label>
-          <a href="#" style={{ color: greenThemeColor, textDecoration: 'none' }}>Forgot Password?</a>
-        </div>
 
         <div style={{ marginTop: '2rem', fontSize: '0.9rem', color: '#999' }}>
             Don't have an account? <Link href="/register" style={{ color: greenThemeColor, textDecoration: 'none', fontWeight: 'bold' }}>Sign up</Link>
