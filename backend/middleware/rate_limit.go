@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -46,7 +47,16 @@ func RateLimitMiddleware(r rate.Limit, b int) gin.HandlerFunc {
 	limiter := NewIPRateLimiter(r, b)
 
 	return func(c *gin.Context) {
-		ip := c.ClientIP()
+		// 🛡️ PROXY AWARE: Use X-Forwarded-For for Render/Vercel environments
+		ip := c.GetHeader("X-Forwarded-For")
+		if ip == "" {
+			ip = c.ClientIP()
+		} else {
+			// X-Forwarded-For can be a comma-separated list; take the first one
+			ips := strings.Split(ip, ",")
+			ip = strings.TrimSpace(ips[0])
+		}
+
 		if !limiter.GetLimiter(ip).Allow() {
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"error": "Too many requests. Please slow down.",

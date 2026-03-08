@@ -69,8 +69,10 @@ func main() {
 		})
 
 		// --- 🟢 Public Routes (ไม่ต้องใช้ JWT) ---
-		// Strict rate limit for authentication (5 requests per minute, burst 10)
+		// 🛡️ 1. Strict rate limit for authentication (5 requests per minute, burst 10)
 		authLimit := middleware.RateLimitMiddleware(rate.Every(time.Minute/5), 10)
+		// 🛡️ 2. Moderate rate limit for resource-heavy Image Generation (20 requests per minute, burst 30)
+		genLimit := middleware.RateLimitMiddleware(rate.Every(time.Minute/20), 30)
 
 		api.POST("/login", authLimit, handlers.LoginHandler)
 		api.POST("/logout", handlers.LogoutHandler)
@@ -81,21 +83,20 @@ func main() {
 		api.GET("/user/:id", handlers.GetUserHandler)
 
 		// Captcha ด่านต่างๆ (ใช้ userID จาก Body/Query)
-		api.GET("/captcha", handlers.GenerateCaptcha)
-		api.POST("/verify", handlers.VerifyCaptcha)
-		api.GET("/slider", handlers.GenerateSliderCaptcha)
-		api.POST("/slider/verify", handlers.VerifySlider)
-		api.POST("/turnstile/verify", handlers.VerifyTurnstile)
+		api.GET("/captcha", genLimit, handlers.GenerateCaptcha)
+		api.POST("/verify", authLimit, handlers.VerifyCaptcha)
+		api.GET("/slider", genLimit, handlers.GenerateSliderCaptcha)
+		api.POST("/slider/verify", authLimit, handlers.VerifySlider)
+		api.POST("/turnstile/verify", authLimit, handlers.VerifyTurnstile)
 
 		// 2FA & Google SSO
-		api.GET("/auth/google/login", handlers.GoogleLogin)
+		api.GET("/auth/google/login", authLimit, handlers.GoogleLogin)
 		api.GET("/auth/google/callback", handlers.GoogleCallback)
 		api.GET("/auth/token-sync", handlers.SyncTokenHandler)
 		api.POST("/2fa/request", authLimit, handlers.RequestOTPHandler)
 		api.POST("/2fa/verify", authLimit, handlers.Verify2FAHandler) // ตัวนี้เป็นคนแจก JWT
 		api.GET("/2fa/check-push", handlers.CheckPushStatus)
 		api.GET("/2fa/simulate-push-approve", handlers.SimulatePushApprove)
-
 		// --- Protected Routes (ต้องผ่าน 2FA และมี JWT แล้วเท่านั้น) ---
 		protected := api.Group("/research")
 		protected.Use(middleware.AuthMiddleware()) // ใช้ Middleware กั้นตรงนี้
