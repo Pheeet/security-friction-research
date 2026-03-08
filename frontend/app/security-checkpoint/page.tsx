@@ -18,6 +18,7 @@ const CheckpointLoadingUI = ({ message = "Preparing Security Challenge...", subM
 function CheckpointRedirector() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const urlSyncCode = searchParams.get('sync');
   const hasRedirected = useRef(false);
 
   const [loadingState, setLoadingState] = useState<'syncing' | 'preparing' | 'clearing'>('syncing');
@@ -53,9 +54,9 @@ function CheckpointRedirector() {
       const existingToken = sessionStorage.getItem('token');
       if (!existingToken) {
         try {
-
-          const res = await api.get('/api/auth/token-sync');
-
+          const urlSyncCode = searchParams.get('sync');
+          const endpoint = urlSyncCode ? `/api/auth/token-sync?code=${urlSyncCode}` : '/api/auth/token-sync';
+          const res = await api.get(endpoint);
           if (res.data.token) {
             
             const token = res.data.token;
@@ -86,9 +87,10 @@ function CheckpointRedirector() {
     const urlRisk = searchParams.get('risk');
     const urlCaptcha = searchParams.get('captcha');
     const urlReq2FA = searchParams.get('req2fa');
+    const urlSyncCode = searchParams.get('sync'); // 💡 ดึงค่า sync มาเช็ก
 
     // 🛡️ SSO CALLBACK CLEANUP: Clean URL immediately if params are present
-    if (urlMode || urlRisk || urlCaptcha) {
+    if (urlMode || urlRisk || urlCaptcha || urlSyncCode) {
       if (urlUserId) sessionStorage.setItem('secure_user_id', urlUserId);
       if (urlMethod) sessionStorage.setItem('2fa_method', urlMethod);
       if (urlMode) sessionStorage.setItem('experiment_mode', urlMode);

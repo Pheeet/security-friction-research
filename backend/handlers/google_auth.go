@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"sync"
 
 	"backend-api/database"
 	"backend-api/utils"
@@ -24,6 +25,8 @@ import (
 )
 
 var googleOauthConfig *oauth2.Config
+
+var TokenCache sync.Map
 
 // 1. ตั้งค่า Config (เรียกใช้ใน main.go)
 func InitGoogleAuth() {
@@ -117,7 +120,6 @@ func GoogleCallback(c *gin.Context) {
 	// 💡 แกะกล่องข้อมูล State ที่ฝาก Google ไว้
 	// ------------------------------------------
 	stateParts := strings.Split(state, "|")
-
 	experimentMode := "static"
 	mouseMoved := false
 	hasPasted := false
@@ -140,6 +142,7 @@ func GoogleCallback(c *gin.Context) {
 	captchaType := ""
 	require2FA := "true"
 	tokenString := ""
+	syncCode := ""
 
 	if experimentMode == "adaptive" {
 		// 💡 จำลอง LoginRequest เพื่อเอาไปเข้าฟังก์ชันคำนวณคะแนน
@@ -171,6 +174,9 @@ func GoogleCallback(c *gin.Context) {
 
 				// 💡 ตั้งค่า Cookie แบบปลอดภัยผ่าน utils
 				utils.SetSecureCookie(c, "auth_token", tokenString, 3600*24)
+
+				syncCode = uuid.New().String()
+				TokenCache.Store(syncCode, tokenString)
 			}
 		}
 	}
@@ -201,9 +207,9 @@ func GoogleCallback(c *gin.Context) {
 
 	// ⭐ แนบข้อมูลทั้งหมดไปกับ URL ให้หน้า Checkpoint (ไม่ส่ง Token ไปทาง URL แล้ว)
 	checkpointURL := fmt.Sprintf(
-        "%s/security-checkpoint?userId=%d&method=email&mode=%s&risk=%s&captcha=%s&req2fa=%s",
-        frontendURL, user.ID, experimentMode, riskLevel, captchaType, require2FA,
-    )
+		"%s/security-checkpoint?userId=%d&method=email&mode=%s&risk=%s&captcha=%s&req2fa=%s&sync=%s",
+		frontendURL, user.ID, experimentMode, riskLevel, captchaType, require2FA, syncCode,
+	)
 
 	// เปลี่ยนเป็น StatusFound (302) ปลอดภัยกว่า
 	c.Redirect(http.StatusFound, checkpointURL)

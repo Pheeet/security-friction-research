@@ -424,6 +424,17 @@ func GetUserHandler(c *gin.Context) {
 func SyncTokenHandler(c *gin.Context) {
 	// If it reached here, AuthMiddleware already validated the token.
 	// We just need to extract it from the Request (Header or Cookie).
+	code := c.Query("code")
+	if code != "" {
+		// ถ้ามี Code ให้ดึง Token ออกมาจาก Memory และลบตั๋วทิ้งทันที (One-time use)
+		if t, exists := TokenCache.LoadAndDelete(code); exists {
+			tokenString := t.(string)
+			// ส่ง Token กลับไปให้ Frontend ถมลง Cookie ของตัวเอง
+			c.JSON(http.StatusOK, gin.H{"token": tokenString})
+			return
+		}
+	}
+	
 	var tokenString string
 	authHeader := c.GetHeader("Authorization")
 	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
