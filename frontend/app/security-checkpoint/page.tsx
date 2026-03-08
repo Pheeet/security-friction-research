@@ -33,7 +33,7 @@ function CheckpointRedirector() {
     if (!isMounted) return;
 
     const syncAndExtract = async () => {
-
+    // ฟังก์ชันช่วยดึง Cookie
       const getCookie = (name: string) => {
         const value = `; ${document.cookie}`;
         const parts = value.split(`; ${name}=`);
@@ -42,12 +42,13 @@ function CheckpointRedirector() {
       };
 
       // 1. Extract sessionId IMMEDIATELY (Crucial for SSO context loss prevention)
+      const cookieSessionId = getCookie('session_id');
       const urlSessionId = searchParams.get('sessionId');
-      if (urlSessionId) {
-        sessionStorage.setItem('sessionId', urlSessionId);
-        console.log("🛡️ Session ID restored from Cookie");
+      const finalSessionId = urlSessionId || cookieSessionId;
+      if (finalSessionId) {
+        sessionStorage.setItem('sessionId', finalSessionId);
+        console.log("🛡️ Session ID synchronized");
       }
-
       // 2. Restore token to sessionStorage from HttpOnly cookie
       const existingToken = sessionStorage.getItem('token');
       if (!existingToken) {
@@ -56,9 +57,11 @@ function CheckpointRedirector() {
           const res = await api.get('/api/auth/token-sync');
 
           if (res.data.token) {
-            sessionStorage.setItem('token', res.data.token);
+            
+            const token = res.data.token;
+            sessionStorage.setItem('token', token);
             // STAMP FIRST-PARTY COOKIE FOR NEXT.JS MIDDLEWARE
-            document.cookie = `auth_token=${res.data.token}; path=/; max-age=86400; SameSite=Lax; Secure`;
+            document.cookie = `auth_token=${token}; path=/; max-age=86400; SameSite=Lax; Secure`;
             console.log("🛡️ Session Synced: Token restored to sessionStorage.");
           }
         } catch (err) {

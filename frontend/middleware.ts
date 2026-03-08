@@ -6,7 +6,8 @@ export function middleware(request: NextRequest){
     // ดึง path ปัจจุบัน
     const path = request.nextUrl.pathname;
 
-    const isLoggedIn = request.cookies.has('auth_token');
+    const token = request.cookies.get('auth_token')?.value;
+    const isLoggedIn = !!token;
                          
     const isGuestOnlyPath = path === '/login' || path === '/register';
 
@@ -24,6 +25,7 @@ export function middleware(request: NextRequest){
     }
 
     if (!isLoggedIn && isProtectedPath) {
+      console.log(`🚫 Access denied to ${path}, redirecting to login`);
       return NextResponse.redirect(new URL('/login', request.url));
     }
 

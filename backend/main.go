@@ -89,6 +89,7 @@ func main() {
 		api.POST("/2fa/verify", authLimit, handlers.Verify2FAHandler) // ตัวนี้เป็นคนแจก JWT
 		api.GET("/2fa/check-push", handlers.CheckPushStatus)
 		api.GET("/2fa/simulate-push-approve", handlers.SimulatePushApprove)
+		
 
 		// --- Protected Routes (ต้องผ่าน 2FA และมี JWT แล้วเท่านั้น) ---
 		protected := api.Group("/research")
