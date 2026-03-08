@@ -24,6 +24,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 const (
@@ -34,11 +35,13 @@ const (
 )
 
 type SliderResponse struct {
+	CaptchaID     string `json:"captchaId"`     // 🛡️ Added: Unique ID for this challenge
 	OriginalImage string `json:"originalImage"` // รูปพื้นหลัง
 	PuzzlePiece   string `json:"puzzlePiece"`   // ชิ้นจิ๊กซอว์
 	Y             int    `json:"y"`             // ตำแหน่งความสูง
 	Width         int    `json:"width"`         // ส่งไปด้วย
 	Height        int    `json:"height"`        // ส่งไปด้วย
+	PieceSize     int    `json:"pieceSize"`     // 📏 Added: Tell frontend the exact piece size
 }
 
 func GenerateSliderCaptcha(c *gin.Context) {
@@ -154,23 +157,21 @@ func GenerateSliderCaptcha(c *gin.Context) {
 	bgBase64 := imgToBase64(bgImg)
 	pieceBase64 := imgToPNGBase64(pieceImg)
 
-	// 7. ใช้ UserID เป็น Key ในการจำคำตอบแทน Session
-	userID := c.Query("userId")
-	if userID == "" {
-		userID = "UnknownUser" // กันเหนียว
-	}
+	// 🛡️ SECURITY FIX: Generate a unique CaptchaID instead of using UserID
+	captchaID := uuid.New().String()
 
-	// 👇 เติมบรรทัดนี้ลงไปเพื่อดูว่าเซฟลง Memory ถูกไหม
-	fmt.Printf("[GENERATE] UserID: %s | Target X (เป้าหมาย): %d\n", userID, targetX)
+	fmt.Printf("[GENERATE] CaptchaID: %s | Target X (เป้าหมาย): %d\n", captchaID, targetX)
 
-	StoreSliderAnswer(userID, targetX) // เซฟคำตอบโดยผูกกับ userID
+	StoreSliderAnswer(captchaID, targetX) // เซฟคำตอบโดยผูกกับ captchaID
 
 	c.JSON(http.StatusOK, SliderResponse{
+		CaptchaID:     captchaID,
 		OriginalImage: bgBase64,
 		PuzzlePiece:   pieceBase64,
 		Y:             targetY,
 		Width:         BoxWidth,
 		Height:        BoxHeight,
+		PieceSize:     PuzzleWidth,
 	})
 }
 
@@ -193,31 +194,28 @@ var (
 	sliderMu      sync.RWMutex
 )
 
-func StoreSliderAnswer(sessionID string, answer int) {
+func StoreSliderAnswer(captchaID string, answer int) {
 	sliderMu.Lock()
 	defer sliderMu.Unlock()
-	sliderAnswers[sessionID] = answer
+	sliderAnswers[captchaID] = answer
 }
 
-func VerifySliderAnswer(sessionID string, userAnswer int) bool {
+func VerifySliderAnswer(captchaID string, userPercentage float64) bool {
 	sliderMu.Lock()
 	defer sliderMu.Unlock()
-	correctX, exists := sliderAnswers[sessionID]
+	correctX, exists := sliderAnswers[captchaID]
 
-	// 👇 เติมบรรทัดนี้ลงไปเพื่อดูว่าหาคำตอบเจอไหม และค่าที่ส่งมาคืออะไร
-	fmt.Printf("[VERIFY] UserID: %s | เจอคำตอบไหม?: %v | คำตอบที่ถูก: %d | User ลากมาที่: %d\n", sessionID, exists, correctX, userAnswer)
+	fmt.Printf("[VERIFY] CaptchaID: %s | เจอคำตอบไหม?: %v | คำตอบที่ถูก(X): %d | User ลากมาที่(%%): %f\n", captchaID, exists, correctX, userPercentage)
 
 	if !exists {
 		return false
 	}
 
-	delete(sliderAnswers, sessionID) // ลบทิ้งทันทีหลังตรวจ
+	delete(sliderAnswers, captchaID) // ลบทิ้งทันทีหลังตรวจ
 
+	// 📏 PROD ALIGNMENT FIX: Use backend constants to calculate the exact correct percentage
 	maxMovableBackend := float64(BoxWidth - PuzzleWidth)
 	correctPercentage := (float64(correctX) / maxMovableBackend) * 100.0
-
-	// รับค่ามาเป็น % แล้ว เอามาเทียบได้เลย
-	userPercentage := float64(userAnswer)
 
 	diff := correctPercentage - userPercentage
 	if diff < 0 {
@@ -228,9 +226,10 @@ func VerifySliderAnswer(sessionID string, userAnswer int) bool {
 }
 
 type SliderVerifyRequest struct {
-	UserID    string `json:"userId"`
-	X         int    `json:"x"`
-	TimeTaken int64  `json:"timeTaken"`
+	CaptchaID string  `json:"captchaId"` // 🛡️ Added: Require CaptchaID
+	UserID    string  `json:"userId"`
+	X         float64 `json:"x"` // Changed to float64 for percentage
+	TimeTaken int64   `json:"timeTaken"`
 }
 
 func VerifySlider(c *gin.Context) {
@@ -246,15 +245,15 @@ func VerifySlider(c *gin.Context) {
 		sessionStr = sessionID.(string)
 	}
 
-	// 2. ตรวจคำตอบ โดยใช้ req.UserID แทน (แม่นยำ 100% ข้ามโดเมนได้)
-	isCorrect := VerifySliderAnswer(req.UserID, req.X)
+	// 🛡️ SECURITY FIX: Verify using CaptchaID instead of UserID
+	isCorrect := VerifySliderAnswer(req.CaptchaID, req.X)
 
 	// 3. บันทึกลง Database
 	database.DB.Create(&database.ResearchLog{
 		SessionID:   sessionStr,
 		CaptchaType: "slider",
-		CaptchaID:   "generated",
-		UserInput:   fmt.Sprintf("%d", req.X),
+		CaptchaID:   req.CaptchaID,
+		UserInput:   fmt.Sprintf("%f", req.X),
 		IsCorrect:   isCorrect,
 		TimeTaken:   req.TimeTaken,
 	})
@@ -292,3 +291,4 @@ func VerifySlider(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "Incorrect!"})
 	}
 }
+

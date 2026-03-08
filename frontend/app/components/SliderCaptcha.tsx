@@ -13,34 +13,30 @@ interface Props {
 
 
 export default function SliderCaptcha({ userId, onSuccess }: Props) {
+  const [captchaId, setCaptchaId] = useState<string>(""); // 🛡️ Added: Store CaptchaID
   const [bgImage, setBgImage] = useState<string>("");
   const [pieceImage, setPieceImage] = useState<string>("");
   const [pieceY, setPieceY] = useState<number>(0);
   const [sliderValue, setSliderValue] = useState<number>(0);
   const [status, setStatus] = useState<string | null>(null);
   
-  
   const absoluteStartTime = useRef<number>(0);
   
   const [isLoading, setIsLoading] = useState(true);
-  const [captchaWidth, setCaptchaWidth] = useState<number>(300); 
-  const [captchaHeight, setCaptchaHeight] = useState<number>(150);
   const [isError, setIsError] = useState(false);
-  const [actualWidth, setActualWidth] = useState<number>(300);
+
+  // 📏 Alignment States
+  const [backendWidth, setBackendWidth] = useState<number>(300);
+  const [backendPieceSize, setBackendPieceSize] = useState<number>(70);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [renderScale, setRenderScale] = useState(1);
 
   const router = useRouter();
-
   const hasFetched = useRef(false);
-
-  const ORIGINAL_WIDTH = 300;
-  const ORIGINAL_PIECE_SIZE = 70;
 
   useEffect(() => {
     if (!hasFetched.current) {
-      
       absoluteStartTime.current = Date.now(); 
       fetchCaptcha();
       hasFetched.current = true;
@@ -49,30 +45,30 @@ export default function SliderCaptcha({ userId, onSuccess }: Props) {
     const updateScale = () => {
       if (containerRef.current) {
         const actualWidth = containerRef.current.offsetWidth;
-        setRenderScale(actualWidth / ORIGINAL_WIDTH);
+        // 📏 Align scale with whatever width the backend sent
+        setRenderScale(actualWidth / backendWidth);
       }
     };
 
     window.addEventListener("resize", updateScale);
-    updateScale(); // รันครั้งแรก
+    updateScale();
     return () => window.removeEventListener("resize", updateScale);
-
-  }, []);
-
-  
+  }, [backendWidth]);
 
   const fetchCaptcha = async () => {
     setIsLoading(true);
     setStatus(null);
     setSliderValue(0);
     try {
-      // เติม &t=${Date.now()} เข้าไปต่อท้ายครับ 👇
       const res = await axios.get(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")}/api/slider?userId=${userId}&t=${Date.now()}`, {
         withCredentials: true,
       });
+      setCaptchaId(res.data.captchaId); // 🛡️ Store unique ID
       setBgImage(res.data.originalImage);
       setPieceImage(res.data.puzzlePiece);
       setPieceY(res.data.y);
+      setBackendWidth(res.data.width || 300);
+      setBackendPieceSize(res.data.pieceSize || 70);
       
     } catch (error) {
       console.error("Error loading captcha:", error);
@@ -83,40 +79,33 @@ export default function SliderCaptcha({ userId, onSuccess }: Props) {
   };
 
   const handleVerify = async () => {
-    if (isLoading || status === "Correct! 🎉") return;
+    if (isLoading || status === "Correct! 🎉" || !captchaId) return;
 
     const durationTotal = Date.now() - absoluteStartTime.current;
-    
 
     try {
       const res = await axios.post(
         `${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")}/api/slider/verify`,
         {
+          captchaId: captchaId, // 🛡️ Send unique ID
           userId: userId,
-          x: Math.round(sliderValue), 
+          x: sliderValue, // Sending percentage directly
           timeTaken: durationTotal, 
         },
         { withCredentials: true }
       );
 
       if (res.data.success) {
-        
         setStatus("Correct! 🎉");
-        
         setTimeout(() => {
-          if (onSuccess) {
-            onSuccess();
-          } else {
-            router.push("/survey");
-          }
+          if (onSuccess) onSuccess();
+          else router.push("/survey");
         }, 1500);
       } else {
         setStatus("Incorrect! ❌");
         setIsError(true);
         setTimeout(() => setIsError(false), 400);
-        setTimeout(() => {
-            fetchCaptcha();
-        }, 1000);
+        setTimeout(() => fetchCaptcha(), 1000);
       }
     } catch (error) {
       console.error("Verify error:", error);
@@ -124,9 +113,10 @@ export default function SliderCaptcha({ userId, onSuccess }: Props) {
     }
   };
 
-  const visualPieceSize = ORIGINAL_PIECE_SIZE * renderScale;
+  const visualPieceSize = backendPieceSize * renderScale;
   const visualTop = pieceY * renderScale;
-  // คำนวณตำแหน่ง Left: (เปอร์เซ็นต์ / 100) * (ความกว้างคอนเทนเนอร์ - ขนาดชิ้นส่วน)
+  
+  // 📏 Calculate visual offset precisely using percentages
   const visualLeft = containerRef.current 
     ? (sliderValue / 100) * (containerRef.current.offsetWidth - visualPieceSize)
     : 0;
