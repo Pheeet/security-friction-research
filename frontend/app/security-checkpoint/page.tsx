@@ -50,22 +50,24 @@ function CheckpointRedirector() {
         sessionStorage.setItem('sessionId', finalSessionId);
         console.log("🛡️ Session ID synchronized");
       }
-      // 2. Restore token to sessionStorage from HttpOnly cookie
+      
+      // 2. Restore token and email to sessionStorage
       const existingToken = sessionStorage.getItem('token');
-      if (!existingToken) {
+      const existingEmail = sessionStorage.getItem('userEmail');
+      
+      if (!existingToken || !existingEmail || urlSyncCode) {
         try {
-          const urlSyncCode = searchParams.get('sync');
           const endpoint = urlSyncCode ? `/api/auth/token-sync?code=${urlSyncCode}` : '/api/auth/token-sync';
           const res = await api.get(endpoint);
           if (res.data.token) {
-            
             const token = res.data.token;
             sessionStorage.setItem('token', token);
             if (res.data.email) {
               sessionStorage.setItem('userEmail', res.data.email);
             }
-            // STAMP FIRST-PARTY COOKIE FOR NEXT.JS MIDDLEWARE
-            document.cookie = `auth_token=${token}; path=/; max-age=86400; SameSite=Lax; Secure`;
+            // 🛡️ BRAVE/PRODUCTION COMPATIBILITY: Set as first-party cookie
+            const cookiePolicy = process.env.NODE_ENV === "production" ? "; SameSite=Lax; Secure" : "; SameSite=Lax";
+            document.cookie = `auth_token=${token}; path=/; max-age=86400${cookiePolicy}`;
             console.log("🛡️ Session Synced: Token restored to sessionStorage.");
           }
         } catch (err) {
@@ -78,7 +80,7 @@ function CheckpointRedirector() {
     };
 
     syncAndExtract();
-  }, [isMounted]);
+  }, [isMounted, urlSyncCode]);
 
   useEffect(() => {
     if (!isSyncComplete || hasRedirected.current) return;

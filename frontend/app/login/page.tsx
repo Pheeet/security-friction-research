@@ -168,7 +168,7 @@ export default function LoginPage() {
             sessionStorage.setItem('captcha_type', data.captcha_type || ''); 
             sessionStorage.setItem('2fa_method', data.method || 'email');
 
-            const cookiePolicy = process.env.NODE_ENV === "production" ? "; SameSite=None; Secure" : "; SameSite=Lax";
+            const cookiePolicy = process.env.NODE_ENV === "production" ? "; SameSite=Lax; Secure" : "; SameSite=Lax";
             if (data.token) {
               document.cookie = `auth_token=${data.token}; path=/; max-age=86400${cookiePolicy}`;
               sessionStorage.setItem('token', data.token); // 👈 เพิ่มบรรทัดนี้เข้าไปครับ!

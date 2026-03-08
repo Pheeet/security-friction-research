@@ -84,7 +84,7 @@ function ChallengeContent() {
       if (data.success) {
         
         if (data.token) {
-          const cookiePolicy = process.env.NODE_ENV === "production" ? "; SameSite=None; Secure" : "; SameSite=Lax";
+          const cookiePolicy = process.env.NODE_ENV === "production" ? "; SameSite=Lax; Secure" : "; SameSite=Lax";
           document.cookie = `auth_token=${data.token}; path=/; max-age=86400${cookiePolicy}`;
           
           // ⭐ เพิ่มบรรทัดนี้เข้าไปครับ เพื่อให้หน้า Survey ดึงไปใช้ต่อได้!

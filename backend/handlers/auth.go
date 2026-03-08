@@ -147,6 +147,7 @@ type TwoFAResponse struct {
 	Message        string `json:"message"`
 	Require2FA     bool   `json:"require_2fa"`
 	UserID         uint   `json:"user_id"`
+	Email          string `json:"email"` // 🛡️ Masked email for 2FA display
 	Method         string `json:"method"` // email, push
 	SessionID      string `json:"session_id"`
 	ExperimentMode string `json:"experiment_mode"`
@@ -287,6 +288,7 @@ func LoginHandler(c *gin.Context) {
 		Message:        "Please complete security check",
 		Require2FA:     require2FA,
 		UserID:         user.ID,
+		Email:          maskEmail(user.Email), // 🛡️ Zero URL Footprint: Masked Email in JSON
 		Method:         method,
 		SessionID:      sessionID,
 		ExperimentMode: experimentMode,
