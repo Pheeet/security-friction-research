@@ -430,6 +430,7 @@ func SyncTokenHandler(c *gin.Context) {
 		tokenString = strings.TrimPrefix(authHeader, "Bearer ")
 	}
 
+	// ถ้าไม่มีใน Header ลองหาใน Cookie
 	if tokenString == "" {
 		cookieToken, err := c.Cookie("auth_token")
 		if err == nil {
@@ -437,37 +438,15 @@ func SyncTokenHandler(c *gin.Context) {
 		}
 	}
 
-	// SSO Claim Ticket Pattern
-	sessionID := c.Query("sessionId")
-	if tokenString == "" && sessionID != "" {
-		var journey database.ResearchJourney
-		if err := database.DB.Where("session_id = ?", sessionID).First(&journey).Error; err == nil {
-			// Found the journey, redeem the token for this user
-			secret := database.GetEnv("JWT_SECRET", "dev-secret-key")
-			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-				"user_id": journey.UserID,
-				"exp":     time.Now().Add(time.Hour * 24).Unix(),
-			})
+	// ❌ ลบบล็อกที่เอา SessionID ไปค้น Database แล้วเสก JWT ใหม่ออกไปแล้ว ❌
 
-			if tString, err := token.SignedString([]byte(secret)); err == nil {
-				tokenString = tString
-				// Also set cookie for future requests
-				utils.SetSecureCookie(c, "auth_token", tokenString, 3600*24)
-
-				c.JSON(http.StatusOK, gin.H{
-					"token":  tokenString,
-					"status": "redeemed_via_session",
-				})
-				return
-			}
-		}
-	}
-
+	// ถ้ายังไม่มี Token แสดงว่ายังล็อกอินไม่สมบูรณ์ หรือ Cookie หลุด
 	if tokenString == "" {
 		c.JSON(http.StatusOK, gin.H{"token": "", "status": "waiting_for_2fa_or_sso"})
 		return
 	}
 
+	// ส่งคืน Token ให้ Frontend เอาไปใช้งาน
 	c.JSON(http.StatusOK, gin.H{
 		"token": tokenString,
 	})

@@ -35,10 +35,15 @@ func main() {
 
 	frontendURL := database.GetEnv("FRONTEND_URL", "http://localhost:3000")
 	frontendURL = strings.TrimSuffix(frontendURL, "/")
+	env := database.GetEnv("ENV", "development")
 
 	// 2. แก้ปัญหา CORS (ให้ Frontend ยิงเข้ามาได้)
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{frontendURL, "http://localhost:3000", "http://127.0.0.1:3000"}
+	if env == "production" || env == "release" {
+		config.AllowOrigins = []string{frontendURL} // Production ยอมรับแค่ URL จริง
+	} else {
+		config.AllowOrigins = []string{frontendURL, "http://localhost:3000", "http://127.0.0.1:3000"} // Dev อนุญาต Localhost ได้
+	}
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization", "Accept", "Cookie"}
 	config.ExposeHeaders = []string{"Content-Length", "Set-Cookie"}
@@ -51,6 +56,8 @@ func main() {
 
 	api := r.Group("/api")
 	{
+		api.Use(middleware.CSRFProtection())
+		
 		api.GET("/ping", func(c *gin.Context) {
 			c.JSON(200, gin.H{"message: ": "pong"})
 		})

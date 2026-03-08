@@ -33,17 +33,28 @@ function CheckpointRedirector() {
     if (!isMounted) return;
 
     const syncAndExtract = async () => {
+
+      const getCookie = (name: string) => {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop()?.split(';').shift();
+        return null;
+      };
+
       // 1. Extract sessionId IMMEDIATELY (Crucial for SSO context loss prevention)
       const urlSessionId = searchParams.get('sessionId');
       if (urlSessionId) {
         sessionStorage.setItem('sessionId', urlSessionId);
+        console.log("🛡️ Session ID restored from Cookie");
       }
 
       // 2. Restore token to sessionStorage from HttpOnly cookie
       const existingToken = sessionStorage.getItem('token');
       if (!existingToken) {
         try {
-          const res = await api.get('/api/auth/token-sync' + (urlSessionId ? '?sessionId=' + urlSessionId : ''));
+
+          const res = await api.get('/api/auth/token-sync');
+
           if (res.data.token) {
             sessionStorage.setItem('token', res.data.token);
             // STAMP FIRST-PARTY COOKIE FOR NEXT.JS MIDDLEWARE
@@ -60,7 +71,7 @@ function CheckpointRedirector() {
     };
 
     syncAndExtract();
-  }, [isMounted, searchParams]);
+  }, [isMounted]);
 
   useEffect(() => {
     if (!isSyncComplete || hasRedirected.current) return;
