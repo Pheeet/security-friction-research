@@ -93,15 +93,17 @@ function CheckpointRedirector() {
     const urlCaptcha = searchParams.get('captcha');
     const urlReq2FA = searchParams.get('req2fa');
     const urlSyncCode = searchParams.get('sync'); // 💡 ดึงค่า sync มาเช็ก
+    const urlEmail = searchParams.get('email');
 
     // 🛡️ SSO CALLBACK CLEANUP: Clean URL immediately if params are present
-    if (urlMode || urlRisk || urlCaptcha || urlSyncCode) {
+    if (urlMode || urlRisk || urlCaptcha || urlSyncCode || urlEmail) {
       if (urlUserId) sessionStorage.setItem('secure_user_id', urlUserId);
       if (urlMethod) sessionStorage.setItem('2fa_method', urlMethod);
       if (urlMode) sessionStorage.setItem('experiment_mode', urlMode);
       if (urlRisk) sessionStorage.setItem('risk_level', urlRisk);
       if (urlCaptcha) sessionStorage.setItem('captcha_type', urlCaptcha);
       if (urlReq2FA) sessionStorage.setItem('require_2fa', urlReq2FA);
+      if (urlEmail) sessionStorage.setItem('userEmail', urlEmail); // 🟢 3. บันทึก email ลง sessionStorage
 
       // c. IMMEDIATELY remove all query parameters from address bar
       router.replace('/security-checkpoint');
