@@ -35,33 +35,16 @@ function ChallengeContent() {
       return;
     }
     setUserId(storedUserId);
-  }, [router]);
-  
-  useEffect(() => {
-    const fetchUserEmail = async () => {
-      if (!userId) return;
-      try {
-        const sessionId = sessionStorage.getItem('sessionId');
-        const res = await fetch(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")}/api/user/${userId}`, {
-          headers: {
-            'X-Session-ID': sessionId || ''
-          },
-          credentials: 'include'
-        });
-        const data = await res.json();
-        if (res.ok && data.email) {
-          setUserEmail(data.email);
-        } else {
-          setUserEmail('your email');
-        }
-      } catch (error) {
-        console.error("Error fetching user email:", error);
-        setUserEmail('your email');
-      }
-    };
 
-    fetchUserEmail();
-  }, [userId]);
+    // 🛡️ SECURITY FIX: Retrieve email from sessionStorage instead of fetching via API
+    // This avoids 401 Unauthorized on protected enumeration-prevented endpoints.
+    const storedEmail = sessionStorage.getItem('userEmail');
+    if (storedEmail) {
+      setUserEmail(storedEmail);
+    } else {
+      setUserEmail('อีเมลของคุณ');
+    }
+  }, [router]);
   
   useEffect(() => {
     setStartTime(Date.now());
