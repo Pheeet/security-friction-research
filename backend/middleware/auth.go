@@ -2,9 +2,9 @@
 package middleware
 
 import (
-	"backend-api/database"
 	"backend-api/utils"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -38,7 +38,6 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-
 		// 2. ดึง Secret Key จากไฟล์ .env (Production Standard)
 		secret := os.Getenv("JWT_SECRET")
 
@@ -57,7 +56,6 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-
 
 		// 🟢 4. แกะข้อมูล UserID ออกมาเก็บไว้ใน Context เพื่อให้ API อื่นๆ เอาไปใช้งานต่อได้
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {

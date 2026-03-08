@@ -402,11 +402,39 @@ func SimulatePushApprove(c *gin.Context) {
 
 // GetUserHandler สำหรับดึงข้อมูล User พื้นฐาน (เช่น Email) ไปโชว์ที่หน้า Frontend
 func GetUserHandler(c *gin.Context) {
-	userID := c.Param("id")
-	var user database.User
+	userIDStr := c.Param("id")
+	
+	// 🛡️ SECURITY FIX: Prevent enumeration. 
+	// Since 2FA is not yet complete, we don't have a JWT, but we DO have a session_id cookie 
+	// or an X-Session-ID header (for Brave/cross-domain support).
+	
+	sessionID, err := c.Cookie("session_id")
+	if err != nil || sessionID == "" {
+		// Try header fallback for Brave/Vercel-Render cross-domain setup
+		sessionID = c.GetHeader("X-Session-ID")
+	}
 
+	if sessionID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: No valid session found"})
+		return
+	}
+
+	var journey database.ResearchJourney
+	// Find the most recent journey with this sessionID
+	if err := database.DB.Where("session_id = ?", sessionID).Order("created_at desc").First(&journey).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Session not found"})
+		return
+	}
+
+	// Check if the requested ID matches the session owner's ID
+	if fmt.Sprintf("%d", journey.UserID) != userIDStr {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden: You can only access your own data"})
+		return
+	}
+
+	var user database.User
 	// ค้นหา user จาก database ด้วย ID
-	if err := database.DB.First(&user, userID).Error; err != nil {
+	if err := database.DB.First(&user, journey.UserID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}

@@ -41,7 +41,11 @@ function ChallengeContent() {
     const fetchUserEmail = async () => {
       if (!userId) return;
       try {
+        const sessionId = sessionStorage.getItem('sessionId');
         const res = await fetch(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")}/api/user/${userId}`, {
+          headers: {
+            'X-Session-ID': sessionId || ''
+          },
           credentials: 'include'
         });
         const data = await res.json();
