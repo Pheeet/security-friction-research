@@ -189,25 +189,54 @@ func imgToPNGBase64(img image.Image) string {
 }
 
 // จำคำตอบ Inmemory
+type sliderAnswer struct {
+	answer    int
+	expiresAt time.Time
+}
+
 var (
-	sliderAnswers = make(map[string]int)
+	sliderAnswers = make(map[string]sliderAnswer)
 	sliderMu      sync.RWMutex
+	onceSlider    sync.Once
 )
 
+func startSliderCleanup() {
+	go func() {
+		for {
+			time.Sleep(5 * time.Minute)
+			sliderMu.Lock()
+			now := time.Now()
+			for id, sa := range sliderAnswers {
+				if now.After(sa.expiresAt) {
+					delete(sliderAnswers, id)
+				}
+			}
+			sliderMu.Unlock()
+		}
+	}()
+}
+
 func StoreSliderAnswer(captchaID string, answer int) {
+	onceSlider.Do(startSliderCleanup)
 	sliderMu.Lock()
 	defer sliderMu.Unlock()
-	sliderAnswers[captchaID] = answer
+	sliderAnswers[captchaID] = sliderAnswer{
+		answer:    answer,
+		expiresAt: time.Now().Add(10 * time.Minute), // 🛡️ TTL: 10 Minutes
+	}
 }
 
 func VerifySliderAnswer(captchaID string, userPercentage float64) bool {
 	sliderMu.Lock()
 	defer sliderMu.Unlock()
-	correctX, exists := sliderAnswers[captchaID]
+	sa, exists := sliderAnswers[captchaID]
 
-	fmt.Printf("[VERIFY] CaptchaID: %s | เจอคำตอบไหม?: %v | คำตอบที่ถูก(X): %d | User ลากมาที่(%%): %f\n", captchaID, exists, correctX, userPercentage)
+	fmt.Printf("[VERIFY] CaptchaID: %s | เจอคำตอบไหม?: %v | คำตอบที่ถูก(X): %d | User ลากมาที่(%%): %f\n", captchaID, exists, sa.answer, userPercentage)
 
-	if !exists {
+	if !exists || time.Now().After(sa.expiresAt) {
+		if exists {
+			delete(sliderAnswers, captchaID)
+		}
 		return false
 	}
 
@@ -215,7 +244,7 @@ func VerifySliderAnswer(captchaID string, userPercentage float64) bool {
 
 	// 📏 PROD ALIGNMENT FIX: Use backend constants to calculate the exact correct percentage
 	maxMovableBackend := float64(BoxWidth - PuzzleWidth)
-	correctPercentage := (float64(correctX) / maxMovableBackend) * 100.0
+	correctPercentage := (float64(sa.answer) / maxMovableBackend) * 100.0
 
 	diff := correctPercentage - userPercentage
 	if diff < 0 {

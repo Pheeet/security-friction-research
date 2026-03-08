@@ -4,43 +4,64 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 )
 
+type limiterInfo struct {
+	limiter  *rate.Limiter
+	lastSeen time.Time
+}
+
 type IPRateLimiter struct {
-	ips map[string]*rate.Limiter
+	ips map[string]*limiterInfo
 	mu  sync.RWMutex
 	r   rate.Limit
 	b   int
 }
 
 func NewIPRateLimiter(r rate.Limit, b int) *IPRateLimiter {
-	return &IPRateLimiter{
-		ips: make(map[string]*rate.Limiter),
+	i := &IPRateLimiter{
+		ips: make(map[string]*limiterInfo),
 		r:   r,
 		b:   b,
 	}
+
+	// 🛡️ BACKGROUND CLEANUP: Purge IPs inactive for > 1 hour every 10 minutes
+	go func() {
+		for {
+			time.Sleep(10 * time.Minute)
+			i.mu.Lock()
+			for ip, info := range i.ips {
+				if time.Since(info.lastSeen) > 1*time.Hour {
+					delete(i.ips, ip)
+				}
+			}
+			i.mu.Unlock()
+		}
+	}()
+
+	return i
 }
 
 func (i *IPRateLimiter) GetLimiter(ip string) *rate.Limiter {
-	i.mu.RLock()
-	limiter, exists := i.ips[ip]
-	i.mu.RUnlock()
+	i.mu.Lock()
+	defer i.mu.Unlock()
 
+	info, exists := i.ips[ip]
 	if !exists {
-		i.mu.Lock()
-		defer i.mu.Unlock()
-		// Double check
-		limiter, exists = i.ips[ip]
-		if !exists {
-			limiter = rate.NewLimiter(i.r, i.b)
-			i.ips[ip] = limiter
+		info = &limiterInfo{
+			limiter:  rate.NewLimiter(i.r, i.b),
+			lastSeen: time.Now(),
 		}
+		i.ips[ip] = info
+	} else {
+		info.lastSeen = time.Now()
 	}
 
-	return limiter
+	return info.limiter
 }
 
 func RateLimitMiddleware(r rate.Limit, b int) gin.HandlerFunc {

@@ -455,11 +455,14 @@ func SyncTokenHandler(c *gin.Context) {
 	code := c.Query("code")
 	if code != "" {
 		// ถ้ามี Code ให้ดึง Token ออกมาจาก Memory และลบตั๋วทิ้งทันที (One-time use)
-		if t, exists := TokenCache.LoadAndDelete(code); exists {
-			tokenString := t.(string)
-			// ส่ง Token กลับไปให้ Frontend ถมลง Cookie ของตัวเอง
-			c.JSON(http.StatusOK, gin.H{"token": tokenString})
-			return
+		if val, exists := TokenCache.LoadAndDelete(code); exists {
+			ticket := val.(syncTicket)
+			if time.Now().Before(ticket.expiresAt) {
+				tokenString := ticket.token
+				// ส่ง Token กลับไปให้ Frontend ถมลง Cookie ของตัวเอง
+				c.JSON(http.StatusOK, gin.H{"token": tokenString})
+				return
+			}
 		}
 	}
 	

@@ -27,7 +27,30 @@ import (
 
 var googleOauthConfig *oauth2.Config
 
-var TokenCache sync.Map
+type syncTicket struct {
+	token     string
+	expiresAt time.Time
+}
+
+var (
+	TokenCache sync.Map
+	onceToken  sync.Once
+)
+
+func startTokenCacheCleanup() {
+	go func() {
+		for {
+			time.Sleep(5 * time.Minute)
+			TokenCache.Range(func(key, value interface{}) bool {
+				ticket := value.(syncTicket)
+				if time.Now().After(ticket.expiresAt) {
+					TokenCache.Delete(key)
+				}
+				return true
+			})
+		}
+	}()
+}
 
 // 1. ตั้งค่า Config (เรียกใช้ใน main.go)
 func InitGoogleAuth() {
@@ -177,7 +200,11 @@ func GoogleCallback(c *gin.Context) {
 				utils.SetSecureCookie(c, "auth_token", tokenString, 3600*24)
 
 				syncCode = uuid.New().String()
-				TokenCache.Store(syncCode, tokenString)
+				onceToken.Do(startTokenCacheCleanup)
+				TokenCache.Store(syncCode, syncTicket{
+					token:     tokenString,
+					expiresAt: time.Now().Add(5 * time.Minute), // 🛡️ Ticket expires in 5m
+				})
 			}
 		}
 	}

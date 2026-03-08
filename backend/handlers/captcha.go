@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang/freetype/truetype"
@@ -58,13 +59,38 @@ func (s *DiskFontStore) LoadFontsByNames(names []string) []*truetype.Font {
 	return fonts
 }
 
+type captchaItem struct {
+	value     string
+	expiresAt time.Time
+}
+
 type CaseSensitiveStore struct {
 	sync.Map // ใช้ sync.Map เก็บข้อมูล (Thread-safe)
+	once     sync.Once
+}
+
+func (s *CaseSensitiveStore) startCleanup() {
+	go func() {
+		for {
+			time.Sleep(5 * time.Minute)
+			s.Map.Range(func(key, value interface{}) bool {
+				item := value.(captchaItem)
+				if time.Now().After(item.expiresAt) {
+					s.Map.Delete(key)
+				}
+				return true
+			})
+		}
+	}()
 }
 
 // Set เก็บคำตอบลง Memory
 func (s *CaseSensitiveStore) Set(id string, value string) error {
-	s.Map.Store(id, value)
+	s.once.Do(s.startCleanup)
+	s.Map.Store(id, captchaItem{
+		value:     value,
+		expiresAt: time.Now().Add(10 * time.Minute), // 🛡️ TTL: 10 Minutes
+	})
 	return nil
 }
 
@@ -74,10 +100,15 @@ func (s *CaseSensitiveStore) Get(id string, clear bool) string {
 	if !ok {
 		return ""
 	}
+	item := val.(captchaItem)
+	if time.Now().After(item.expiresAt) {
+		s.Map.Delete(id)
+		return ""
+	}
 	if clear {
 		s.Map.Delete(id)
 	}
-	return val.(string)
+	return item.value
 }
 
 func (s *CaseSensitiveStore) Verify(id, answer string, clear bool) bool {
