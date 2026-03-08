@@ -61,6 +61,9 @@ function CheckpointRedirector() {
             
             const token = res.data.token;
             sessionStorage.setItem('token', token);
+            if (res.data.email) {
+              sessionStorage.setItem('userEmail', res.data.email);
+            }
             // STAMP FIRST-PARTY COOKIE FOR NEXT.JS MIDDLEWARE
             document.cookie = `auth_token=${token}; path=/; max-age=86400; SameSite=Lax; Secure`;
             console.log("🛡️ Session Synced: Token restored to sessionStorage.");

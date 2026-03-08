@@ -1,4 +1,4 @@
-//app/2fa/challenge/page/tsx
+//app/2fa/challenge/page.tsx
 'use client';
 
 import { useState, useEffect, Suspense, useRef } from 'react';
@@ -9,7 +9,7 @@ function ChallengeContent() {
   const [userId, setUserId] = useState<string | null>(null);
   const router = useRouter();
 
-  const [userEmail, setUserEmail] = useState('Loading...');
+  const [displayEmail, setDisplayEmail] = useState('');
   const [otpValues, setOtpValues] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(30);
@@ -35,16 +35,13 @@ function ChallengeContent() {
       return;
     }
     setUserId(storedUserId);
-
-    // 🛡️ SECURITY FIX: Retrieve email from sessionStorage instead of fetching via API
-    // This avoids 401 Unauthorized on protected enumeration-prevented endpoints.
-    const storedEmail = sessionStorage.getItem('userEmail');
-    if (storedEmail) {
-      setUserEmail(storedEmail);
-    } else {
-      setUserEmail('อีเมลของคุณ');
-    }
   }, [router]);
+  
+  useEffect(() => {
+    // 🛡️ HYDRATION SAFE SYNC: Retrieve email from sessionStorage only on client-side
+    const storedEmail = sessionStorage.getItem('userEmail');
+    setDisplayEmail(storedEmail || 'อีเมลของคุณ');
+  }, []);
   
   useEffect(() => {
     setStartTime(Date.now());
@@ -252,7 +249,7 @@ function ChallengeContent() {
         </h1>
 
         <p style={{ color: '#4b5563', marginBottom: '1.5rem', fontSize: '1rem', lineHeight: '1.6' }}>
-          We sent an OTP to <strong>{userEmail}</strong><br/>
+          We sent an OTP to <strong>{displayEmail}</strong><br/>
           Enter it below to continue.<br/>
           <span style={{ fontSize: '0.9rem', color: '#9ca3af', marginTop: '4px', display: 'block' }}>Ref: {currentRefCode}</span>
         </p>

@@ -29,6 +29,7 @@ var googleOauthConfig *oauth2.Config
 
 type syncTicket struct {
 	token     string
+	email     string
 	expiresAt time.Time
 }
 
@@ -203,6 +204,7 @@ func GoogleCallback(c *gin.Context) {
 				onceToken.Do(startTokenCacheCleanup)
 				TokenCache.Store(syncCode, syncTicket{
 					token:     tokenString,
+					email:     maskEmail(user.Email),
 					expiresAt: time.Now().Add(5 * time.Minute), // 🛡️ Ticket expires in 5m
 				})
 			}
@@ -241,6 +243,22 @@ func GoogleCallback(c *gin.Context) {
 
 	// เปลี่ยนเป็น StatusFound (302) ปลอดภัยกว่า
 	c.Redirect(http.StatusFound, checkpointURL)
+}
+
+// 🛡️ SECURITY HELPER: Mask email to prevent PII leakage in URLs/Logs
+func maskEmail(email string) string {
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		return email // Fallback if invalid email
+	}
+	local := parts[0]
+	domain := parts[1]
+
+	if len(local) <= 2 {
+		return string(local[0]) + "***@" + domain
+	}
+
+	return string(local[0]) + "***" + string(local[len(local)-1]) + "@" + domain
 }
 
 // --- API สำหรับขอ OTP หลังจากผ่าน Captcha ---

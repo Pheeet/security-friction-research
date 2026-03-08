@@ -460,7 +460,7 @@ func SyncTokenHandler(c *gin.Context) {
 			if time.Now().Before(ticket.expiresAt) {
 				tokenString := ticket.token
 				// ส่ง Token กลับไปให้ Frontend ถมลง Cookie ของตัวเอง
-				c.JSON(http.StatusOK, gin.H{"token": tokenString})
+				c.JSON(http.StatusOK, gin.H{"token": tokenString, "email": ticket.email})
 				return
 			}
 		}
