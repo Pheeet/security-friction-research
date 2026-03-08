@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 // --- โครงสร้างคำถาม (อยู่นอก Component เพื่อไม่ให้ถูกสร้างใหม่ทุกครั้ง) ---
 const surveyQuestions = [
+  // ... (ข้อมูลชุดเดิมของคุณ ไม่ต้องเปลี่ยน) ...
   {
     id: 'q1',
     text: 'คุณรู้สึกว่าขั้นตอนการยืนยันตัวตนเมื่อครู่นี้มีความ "ยุ่งยาก" เพียงใด?',
@@ -52,8 +53,7 @@ const surveyQuestions = [
   },
 ];
 
-// --- 🛡️ Optimization 1: Memoized Question Block ---
-// ป้องกันการ Re-render คำถามวิจัยทั้งหมดเมื่อค่าใน Dropdown เปลี่ยน
+// --- 🛡️ Optimization 1: Memoized Question Block + แก้บั๊ก iOS Safari ---
 const QuestionBlock = memo(({ q, index, currentAnswer, onChange }: any) => {
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 sm:p-8 border border-gray-200">
@@ -61,24 +61,108 @@ const QuestionBlock = memo(({ q, index, currentAnswer, onChange }: any) => {
         {index + 1}. {q.text} <span className="text-red-500">*</span>
       </h2>
       <div className="flex flex-col sm:flex-row sm:justify-between space-y-4 sm:space-y-0">
-        {q.options.map((opt: any) => (
-          <label key={`${q.id}-${opt.val}`} className="flex sm:flex-col items-center cursor-pointer group touch-manipulation">
-            <input 
-              type="radio" 
-              name={q.id} 
-              value={opt.val} 
-              checked={currentAnswer === opt.val} 
-              onChange={() => onChange(q.id, opt.val)} 
-              className="w-5 h-5 text-green-600 border border-gray-300 focus:ring-green-500 mr-3 sm:mr-0 sm:mb-2" 
-            />
-            <span className="text-sm text-gray-600 text-center group-hover:text-gray-900">{opt.label}</span>
-          </label>
-        ))}
+        {q.options.map((opt: any) => {
+          const uniqueId = `${q.id}-${opt.val}`;
+          return (
+            <div key={uniqueId} className="flex sm:flex-col items-center group">
+              <input 
+                id={uniqueId}
+                type="radio" 
+                name={q.id} 
+                value={opt.val} 
+                checked={currentAnswer === opt.val} 
+                onChange={() => onChange(q.id, opt.val)} 
+                className="w-6 h-6 sm:w-5 sm:h-5 text-green-600 border border-gray-300 focus:ring-green-500 mr-3 sm:mr-0 sm:mb-2 cursor-pointer" 
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              />
+              <label 
+                htmlFor={uniqueId}
+                className="text-base sm:text-sm text-gray-600 text-left sm:text-center group-hover:text-gray-900 cursor-pointer select-none w-full"
+                onClick={() => {}} // 🟢 Hack สำหรับ iOS
+              >
+                {opt.label}
+              </label>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 });
 QuestionBlock.displayName = 'QuestionBlock';
+
+// --- 🛡️ Optimization 2: แยก Demographic ออกมาและทำ Memo ---
+const DemographicBlock = memo(({ demographics, onChange }: any) => {
+  return (
+    <div className="bg-white rounded-lg shadow-sm p-6 sm:p-8 border border-gray-200">
+      <h2 className="text-xl font-semibold text-gray-900 mb-6 border-b pb-2">ข้อมูลทั่วไป</h2>
+
+      <div className="mb-6">
+        <label htmlFor="ageGroup" className="block text-lg font-medium text-gray-900 mb-2">
+          อายุของคุณอยู่ในช่วงใด? <span className="text-red-500">*</span>
+        </label>
+        <select 
+          id="ageGroup" 
+          name="ageGroup" 
+          value={demographics.ageGroup} 
+          onChange={onChange} 
+          className="mt-1 block w-full pl-3 pr-10 py-3 text-base text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 sm:text-sm cursor-pointer"
+          style={{ WebkitAppearance: 'none' }} // 🟢 ลบสไตล์แปลกๆ ของ Safari ออกเพื่อให้กดง่ายขึ้น
+        >
+          <option value="" disabled>-- กรุณาเลือกช่วงอายุ --</option>
+          <option value="Under 18">ต่ำกว่า 18 ปี</option>
+          <option value="18-24">18 - 24 ปี</option>
+          <option value="25-34">25 - 34 ปี</option>
+          <option value="35-49">35 - 49 ปี</option>
+          <option value="50+">50 ปีขึ้นไป</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-lg font-medium text-gray-900 mb-3">เพศของคุณ <span className="text-red-500">*</span></label>
+        <div className="space-y-4">
+          {['Male', 'Female', 'Prefer not to say', 'Other'].map((g) => {
+            // 🟢 สร้าง ID เฉพาะสำหรับจับคู่ Input กับ Label
+            const uniqueId = `gender-${g.replace(/\s+/g, '-')}`; 
+            return (
+              <div key={g} className="flex items-center">
+                <input 
+                  id={uniqueId}
+                  type="radio" 
+                  name="gender" 
+                  value={g} 
+                  checked={demographics.gender === g} 
+                  onChange={onChange} 
+                  className="w-6 h-6 text-green-600 border border-gray-300 focus:ring-green-500 mr-3 cursor-pointer" 
+                  style={{ WebkitTapHighlightColor: 'transparent' }} // 🟢 ปิดกล่องเทาๆ เวลากดบน iOS
+                />
+                <label 
+                  htmlFor={uniqueId} 
+                  className="text-gray-700 cursor-pointer select-none text-base"
+                  onClick={() => {}} // 🟢 iOS Safari Hack: บังคับให้ Label ทำงานทันทีเมื่อโดนสัมผัส
+                >
+                  {g === 'Male' ? 'ชาย (Male)' : g === 'Female' ? 'หญิง (Female)' : g === 'Other' ? 'อื่นๆ' : 'ไม่ต้องการตอบ'}
+                </label>
+                {g === 'Other' && (
+                  <input 
+                    type="text" 
+                    name="otherGenderInput" 
+                    value={demographics.otherGenderInput} 
+                    onChange={onChange} 
+                    disabled={demographics.gender !== 'Other'} 
+                    placeholder="ระบุเพศ" 
+                    className={`ml-3 block flex-1 border border-gray-300 rounded-md px-3 py-2 sm:text-sm transition-opacity duration-200 ${demographics.gender !== 'Other' ? 'opacity-40 bg-gray-100' : 'bg-white'}`} 
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+});
+DemographicBlock.displayName = 'DemographicBlock';
 
 export default function SurveyPage() {
   const router = useRouter();
@@ -88,14 +172,12 @@ export default function SurveyPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // ข้อมูลประชากร
   const [demographics, setDemographics] = useState({
     ageGroup: '',
     gender: '',
     otherGenderInput: '' 
   });
 
-  // คำตอบวิจัย
   const [answers, setAnswers] = useState<Record<string, number | null>>({
     q1: null, q2: null, q3: null, q4: null, q5: null,
   });
@@ -108,16 +190,15 @@ export default function SurveyPage() {
     setIsCheckingMode(false);
   }, []);
 
-  // --- 🛡️ Optimization 2: useCallback ---
-  // บังคับให้ฟังก์ชันมี Identity เดิมเสมอ เพื่อไม่ให้กระตุ้นการ Re-render ใน QuestionBlock
   const handleOptionChange = useCallback((questionId: string, value: number) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
-  }, []);
+  }, []); 
 
-  const handleDemographicChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
+  // --- 🛡️ Optimization 3: หุ้ม useCallback ให้ฟังก์ชันจัดการ Demographic ---
+  const handleDemographicChange = useCallback((e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
     setDemographics((prev) => ({ ...prev, [name]: value }));
-  };
+  }, []);
 
   const isSurveyAnswered = Object.values(answers).every((val) => val !== null);
   const isDemographicsAnswered = 
@@ -205,66 +286,14 @@ export default function SurveyPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           
-          {/* ส่วน Demographic: หากมีการเปลี่ยนค่าที่นี่ จะไม่ทำให้ส่วนคำถามข้างล่าง Re-render */}
+          {/* เรียกใช้ Component ที่แยกออกมา */}
           {!isAdaptivePhase && (
-            <div className="bg-white rounded-lg shadow-sm p-6 sm:p-8 border border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6 border-b pb-2">ข้อมูลทั่วไป</h2>
-
-              <div className="mb-6">
-                <label htmlFor="ageGroup" className="block text-lg font-medium text-gray-900 mb-2">
-                  อายุของคุณอยู่ในช่วงใด? <span className="text-red-500">*</span>
-                </label>
-                <select 
-                  id="ageGroup" 
-                  name="ageGroup" 
-                  value={demographics.ageGroup} 
-                  onChange={handleDemographicChange} 
-                  className="mt-1 block w-full pl-3 pr-10 py-3 text-base text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 sm:text-sm touch-manipulation"
-                >
-                  <option value="" disabled>-- กรุณาเลือกช่วงอายุ --</option>
-                  <option value="Under 18">ต่ำกว่า 18 ปี</option>
-                  <option value="18-24">18 - 24 ปี</option>
-                  <option value="25-34">25 - 34 ปี</option>
-                  <option value="35-49">35 - 49 ปี</option>
-                  <option value="50+">50 ปีขึ้นไป</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-lg font-medium text-gray-900 mb-3">เพศของคุณ <span className="text-red-500">*</span></label>
-                <div className="space-y-3">
-                  {['Male', 'Female', 'Prefer not to say', 'Other'].map((g) => (
-                    <label key={g} className="flex items-center cursor-pointer touch-manipulation">
-                      <input 
-                        type="radio" 
-                        name="gender" 
-                        value={g} 
-                        checked={demographics.gender === g} 
-                        onChange={handleDemographicChange} 
-                        className="w-5 h-5 text-green-600 border border-gray-300 focus:ring-green-500 mr-3" 
-                      />
-                      <span className="text-gray-700">
-                        {g === 'Male' ? 'ชาย (Male)' : g === 'Female' ? 'หญิง (Female)' : g === 'Other' ? 'อื่นๆ' : 'ไม่ต้องการตอบ'}
-                      </span>
-                      {g === 'Other' && (
-                        <input 
-                          type="text" 
-                          name="otherGenderInput" 
-                          value={demographics.otherGenderInput} 
-                          onChange={handleDemographicChange} 
-                          disabled={demographics.gender !== 'Other'} 
-                          placeholder="ระบุเพศ" 
-                          className={`ml-3 block flex-1 border border-gray-300 rounded-md px-3 py-1.5 sm:text-sm ${demographics.gender !== 'Other' ? 'opacity-40 bg-gray-100' : 'bg-white'}`} 
-                        />
-                      )}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <DemographicBlock 
+              demographics={demographics} 
+              onChange={handleDemographicChange} 
+            />
           )}
 
-          {/* ส่วนคำถามวิจัย: ใช้ Memoized Component เพื่อประสิทธิภาพสูงสุด */}
           {surveyQuestions.map((q, index) => (
             <QuestionBlock 
               key={q.id}
