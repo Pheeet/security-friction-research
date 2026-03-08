@@ -235,10 +235,14 @@ func GoogleCallback(c *gin.Context) {
 
 	frontendURL := database.GetEnv("FRONTEND_URL", "http://localhost:3000")
 
-	// ⭐ แนบข้อมูลทั้งหมดไปกับ URL ให้หน้า Checkpoint (ไม่ส่ง Token ไปทาง URL แล้ว)
+	// 🟢 1. เซ็นเซอร์อีเมลและเข้ารหัสเพื่อความปลอดภัยในการส่งผ่าน URL
+	safeEmail := maskEmail(user.Email) // ถ้าคุณย้ายไป utils แล้ว ให้ใช้ utils.MaskEmail(user.Email)
+	encodedEmail := url.QueryEscape(safeEmail)
+
+	// 🟢 2. เพิ่ม &email=%s เข้าไปใน URL
 	checkpointURL := fmt.Sprintf(
-		"%s/security-checkpoint?userId=%d&method=email&mode=%s&risk=%s&captcha=%s&req2fa=%s&sync=%s",
-		frontendURL, user.ID, experimentMode, riskLevel, captchaType, require2FA, syncCode,
+		"%s/security-checkpoint?userId=%d&method=email&mode=%s&risk=%s&captcha=%s&req2fa=%s&sync=%s&email=%s",
+		frontendURL, user.ID, experimentMode, riskLevel, captchaType, require2FA, syncCode, encodedEmail,
 	)
 
 	// เปลี่ยนเป็น StatusFound (302) ปลอดภัยกว่า

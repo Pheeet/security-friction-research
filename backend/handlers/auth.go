@@ -147,13 +147,14 @@ type TwoFAResponse struct {
 	Message        string `json:"message"`
 	Require2FA     bool   `json:"require_2fa"`
 	UserID         uint   `json:"user_id"`
-	Email          string `json:"email"` // 🛡️ Masked email for 2FA display
+	Email          string `json:"email"`  // 🛡️ Masked email for 2FA display
 	Method         string `json:"method"` // email, push
 	SessionID      string `json:"session_id"`
 	ExperimentMode string `json:"experiment_mode"`
 	RiskLevel      string `json:"risk_level"`
 	CaptchaType    string `json:"captcha_type"`
 	Token          string `json:"token"`
+	MaskedEmail    string `json:"masked_email"`
 }
 
 // RegisterHandler
@@ -258,7 +259,8 @@ func LoginHandler(c *gin.Context) {
 			if tokenString, err := token.SignedString([]byte(secret)); err == nil {
 				generatedToken = tokenString
 				utils.SetSecureCookie(c, "auth_token", tokenString, 3600*24)
-			}		}
+			}
+		}
 	}
 
 	// [RESEARCH LOGIC] สร้าง SessionID และเริ่มบันทึก Journey
@@ -295,6 +297,7 @@ func LoginHandler(c *gin.Context) {
 		RiskLevel:      riskLevel,
 		CaptchaType:    captchaType,
 		Token:          generatedToken,
+		MaskedEmail:    maskEmail(user.Email),
 	})
 }
 
@@ -405,11 +408,11 @@ func SimulatePushApprove(c *gin.Context) {
 // GetUserHandler สำหรับดึงข้อมูล User พื้นฐาน (เช่น Email) ไปโชว์ที่หน้า Frontend
 func GetUserHandler(c *gin.Context) {
 	userIDStr := c.Param("id")
-	
-	// 🛡️ SECURITY FIX: Prevent enumeration. 
-	// Since 2FA is not yet complete, we don't have a JWT, but we DO have a session_id cookie 
+
+	// 🛡️ SECURITY FIX: Prevent enumeration.
+	// Since 2FA is not yet complete, we don't have a JWT, but we DO have a session_id cookie
 	// or an X-Session-ID header (for Brave/cross-domain support).
-	
+
 	sessionID, err := c.Cookie("session_id")
 	if err != nil || sessionID == "" {
 		// Try header fallback for Brave/Vercel-Render cross-domain setup
@@ -467,7 +470,7 @@ func SyncTokenHandler(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	var tokenString string
 	authHeader := c.GetHeader("Authorization")
 	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
