@@ -52,6 +52,7 @@ export default function LoginPage() {
   const [mouseEventCount, setMouseEventCount] = useState(0);
   const [isDataReady, setIsDataReady] = useState(false);
   const [backspaceCount, setBackspaceCount] = useState(0);
+  const [failedAttempts, setFailedAttempts] = useState(0);
 
   useEffect(() => {
     absoluteStartTime.current = Date.now();
@@ -154,7 +155,8 @@ export default function LoginPage() {
               has_pasted: hasPasted,     
               experiment_mode: experimentMode,
               mouse_moved: mouseMoved,
-              backspace_count: backspaceCount
+              backspace_count: backspaceCount,
+              failed_attempts: failedAttempts
             }),
         });
         
@@ -184,6 +186,7 @@ export default function LoginPage() {
             }, 1500);
 
         } else {
+            setFailedAttempts(prev => prev + 1);
             setIsAnalyzing(false);
             setIsLoading(false); 
             setLoginError(data.error || 'Invalid credentials');

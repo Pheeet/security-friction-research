@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -133,6 +134,7 @@ type LoginRequest struct {
 	ExperimentMode string `json:"experiment_mode"`
 	MouseMoved     bool   `json:"mouse_moved"`
 	BackspaceCount int    `json:"backspace_count"`
+	FailedAttempts int    `json:"failed_attempts"`
 }
 
 // 2. สำหรับ Register (ต้องรับข้อมูลเยอะกว่า)
@@ -156,6 +158,13 @@ type TwoFAResponse struct {
 	Token          string `json:"token"`
 	MaskedEmail    string `json:"masked_email"`
 }
+
+type LockoutInfo struct {
+	Attempts   int
+	LockoutEnd time.Time
+}
+
+var LoginLockoutCache sync.Map
 
 // RegisterHandler
 func RegisterHandler(c *gin.Context) {
@@ -218,6 +227,18 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
+	if val, ok := LoginLockoutCache.Load(creds.Username); ok {
+		info := val.(LockoutInfo)
+		// ถ้าย้อนเวลาไปดูแล้วยังไม่หมดเวลาล็อค
+		if time.Now().Before(info.LockoutEnd) {
+			timeLeft := int(time.Until(info.LockoutEnd).Minutes()) + 1
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error": fmt.Sprintf("กรอกรหัสผิดเกินกำหนด บัญชีถูกระงับชั่วคราว กรุณาลองใหม่ในอีก %d นาที", timeLeft),
+			})
+			return
+		}
+	}
+
 	var user database.User
 	if err := database.DB.Where("username = ?", creds.Username).First(&user).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"})
@@ -225,9 +246,42 @@ func LoginHandler(c *gin.Context) {
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(creds.Password)); err != nil {
+		attempts := 1
+		
+		// ดึงประวัติเดิมมาดูว่าผิดไปกี่รอบแล้ว
+		if val, ok := LoginLockoutCache.Load(creds.Username); ok {
+			info := val.(LockoutInfo)
+			// ถ้าเคยโดนล็อคแล้วเวลาหมดไปแล้ว ให้เริ่มนับ 1 ใหม่
+			if time.Now().After(info.LockoutEnd) {
+				attempts = 1
+			} else {
+				attempts = info.Attempts + 1
+			}
+		}
+
+		lockoutEnd := time.Time{}
+		// 🚨 ตั้งค่า: ผิด 3 ครั้ง ล็อค 5 นาที (แก้ตัวเลขตรงนี้ได้เลย)
+		if attempts >= 3 {
+			lockoutEnd = time.Now().Add(5 * time.Minute) 
+		}
+
+		// อัปเดตข้อมูลลง Cache
+		LoginLockoutCache.Store(creds.Username, LockoutInfo{
+			Attempts:   attempts,
+			LockoutEnd: lockoutEnd,
+		})
+
+		// ส่ง Error กลับไปหา Frontend
+		if attempts >= 3 {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "กรอกรหัสผิดเกิน 3 ครั้ง บัญชีถูกระงับ 5 นาที"})
+			return
+		}
+
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"})
 		return
 	}
+
+	LoginLockoutCache.Delete(creds.Username)
 
 	experimentMode := creds.ExperimentMode
 	if experimentMode == "" {
@@ -527,6 +581,12 @@ func CalculateRiskScore(req LoginRequest) (string, string) {
 	if req.BackspaceCount > 3 {
 		score += 20
 		reason += "[Backspace > 3] "
+	}
+
+	if req.FailedAttempts > 0 {
+		// ผิด 1 ครั้ง โดน 15 แต้ม / ผิด 2 ครั้ง โดน 30 แต้ม / ผิด 3 ครั้ง โดน 45 แต้ม
+		score += req.FailedAttempts * 15
+		reason += fmt.Sprintf("[Failed Logins: %d] ", req.FailedAttempts)
 	}
 
 	// 🕵️‍♂️ ปริ้นท์ Log ออกมาดูเลยว่าทำไมคนนี้ถึงได้แต้มเท่านี้!
