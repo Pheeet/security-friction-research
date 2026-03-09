@@ -54,6 +54,22 @@ export default function LoginPage() {
   const [backspaceCount, setBackspaceCount] = useState(0);
   const [failedAttempts, setFailedAttempts] = useState(0);
 
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockoutTimer, setLockoutTimer] = useState(0);
+
+  useEffect(() => {
+  let interval: NodeJS.Timeout;
+  if (lockoutTimer > 0) {
+    setIsLocked(true);
+    interval = setInterval(() => {
+      setLockoutTimer((prev) => prev - 1);
+    }, 1000);
+  } else {
+    setIsLocked(false);
+  }
+  return () => clearInterval(interval);
+}, [lockoutTimer]);
+
   useEffect(() => {
     absoluteStartTime.current = Date.now();
 
@@ -187,6 +203,16 @@ export default function LoginPage() {
 
         } else {
             setFailedAttempts(prev => prev + 1);
+    
+            // ⭐ ถ้า Backend ส่ง Status 429 (Too Many Requests) มา
+            if (res.status === 429) {
+                // พยายามดึงตัวเลขนาทีจากข้อความ (เช่น "อีก 5 นาที")
+                const match = data.error.match(/\d+/);
+                const minutes = match ? parseInt(match[0], 10) : 5;
+                
+                setLockoutTimer(minutes * 60); // แปลงเป็นวินาทีเพื่อใช้นับถอยหลัง
+                setIsLocked(true);
+            }
             setIsAnalyzing(false);
             setIsLoading(false); 
             setLoginError(data.error || 'Invalid credentials');
@@ -411,12 +437,12 @@ export default function LoginPage() {
           
           <button 
             type="submit" 
-            disabled={isLoading || isSuccess} 
+            disabled={isLoading || isSuccess || isLocked}
             style={{ 
                 padding: '12px', 
                 borderRadius: '4px', 
                 border: 'none', 
-                backgroundColor: isSuccess ? '#10b981' : greenThemeColor, 
+                backgroundColor: isLocked ? '#9ca3af' : (isSuccess ? '#10b981' : greenThemeColor), 
                 color: 'white', 
                 fontSize: '1.2rem', 
                 fontWeight: 'bold', 
@@ -436,6 +462,11 @@ export default function LoginPage() {
             ) : isSuccess ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span>✓</span> Login Successful
+                </div>
+            ) : isLocked ? (
+                // ⭐ แสดงเวลานับถอยหลังที่ปุ่ม
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    Locked ({Math.floor(lockoutTimer / 60)}:{(lockoutTimer % 60).toString().padStart(2, '0')})
                 </div>
             ) : (
                 'Log In'
