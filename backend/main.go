@@ -74,7 +74,7 @@ func main() {
 		// 🛡️ 2. Moderate rate limit for resource-heavy Image Generation (20 requests per minute, burst 30)
 		genLimit := middleware.RateLimitMiddleware(rate.Every(time.Minute/20), 30)
 
-		api.POST("/login", authLimit, handlers.LoginHandler)
+		api.POST("/login", handlers.LoginHandler)
 		api.POST("/logout", handlers.LogoutHandler)
 		api.POST("/register", authLimit, handlers.RegisterHandler)
 		api.GET("/check-availability", handlers.CheckAvailabilityHandler)
