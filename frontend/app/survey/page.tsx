@@ -1,59 +1,17 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, memo } from 'react';
+// ⭐ 1. เพิ่ม useTransition จาก 'react'
+import React, { useState, useEffect, useCallback, memo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
-// --- โครงสร้างคำถาม (อยู่นอก Component เพื่อไม่ให้ถูกสร้างใหม่ทุกครั้ง) ---
 const surveyQuestions = [
-  // ... (ข้อมูลชุดเดิมของคุณ ไม่ต้องเปลี่ยน) ...
-  {
-    id: 'q1',
-    text: 'คุณรู้สึกว่าขั้นตอนการยืนยันตัวตนเมื่อครู่นี้มีความ "ยุ่งยาก" เพียงใด?',
-    options: [
-      { val: 0, label: '0 (ยากที่สุด)' }, { val: 1, label: '1 (ยุ่งยากมาก)' },
-      { val: 2, label: '2 (ค่อนข้างยุ่งยาก)' }, { val: 3, label: '3 (ปานกลาง)' },
-      { val: 4, label: '4 (ง่าย)' }, { val: 5, label: '5 (ง่ายมาก)' },
-    ],
-  },
-  {
-    id: 'q2',
-    text: 'คุณรู้สึกว่าระบบสื่อสารกับคุณได้ "ชัดเจน" เพียงใด (เช่น คำสั่งเข้าใจง่าย, รูปภาพชัดเจน)?',
-    options: [
-      { val: 0, label: '0 (ไม่ชัดเจนเลย)' }, { val: 1, label: '1 (ชัดเจนน้อยมาก)' },
-      { val: 2, label: '2 (ชัดเจนน้อย)' }, { val: 3, label: '3 (ชัดเจนปานกลาง)' },
-      { val: 4, label: '4 (ชัดเจนดี)' }, { val: 5, label: '5 (ชัดเจนแจ่มแจ้ง)' },
-    ],
-  },
-  {
-    id: 'q3',
-    text: 'คุณรู้สึกว่า "เวลา" ที่ใช้ไปในการยืนยันตัวตนเหมาะสมหรือไม่?',
-    options: [
-      { val: 0, label: '0 (ยอมรับไม่ได้เลย)' }, { val: 1, label: '1 (ยอมรับได้ยากมาก)' },
-      { val: 2, label: '2 (ไม่จำเป็นจะไม่ใช้)' }, { val: 3, label: '3 (ปานกลาง)' },
-      { val: 4, label: '4 (ยอมรับได้ดี)' }, { val: 5, label: '5 (สมบูรณ์แบบ)' },
-    ],
-  },
-  {
-    id: 'q4',
-    text: 'คุณมีความมั่นใจใน "ความปลอดภัย" ของระบบนี้มากน้อยเพียงใด?',
-    options: [
-      { val: 0, label: '0 (ไม่น่าเชื่อถือเลย)' }, { val: 1, label: '1 (ไม่ค่อยปลอดภัย)' },
-      { val: 2, label: '2 (เฉยๆ/ไม่แน่ใจ)' }, { val: 3, label: '3 (ค่อนข้างปลอดภัย)' },
-      { val: 4, label: '4 (ปลอดภัยมาก)' }, { val: 5, label: '5 (มั่นใจสูงสุด)' },
-    ],
-  },
-  {
-    id: 'q5',
-    text: 'หากเว็บไซต์ที่คุณต้องใช้งานเป็นประจำใช้ต้องยืนยันตัวตนรูปแบบนี้ทุกครั้ง คุณยังต้องการใช้งานเว็บไซต์นี้ต่อไปหรือไม่?',
-    options: [
-      { val: 0, label: '0 (เลิกใช้งานทันที)' }, { val: 1, label: '1 (มีแนวโน้มจะเลิกใช้)' },
-      { val: 2, label: '2 (รู้สึกรำคาญ)' }, { val: 3, label: '3 (ใช้งานได้ตามปกติ)' },
-      { val: 4, label: '4 (ใช้งานต่อได้อย่างสบายใจ)' }, { val: 5, label: '5 (ใช้งานต่อแน่นอน)' },
-    ],
-  },
+  { id: 'q1', text: 'คุณรู้สึกว่าขั้นตอนการยืนยันตัวตนเมื่อครู่นี้มีความ "ยุ่งยาก" เพียงใด?', options: [{ val: 0, label: '0 (ยากที่สุด)' }, { val: 1, label: '1 (ยุ่งยากมาก)' }, { val: 2, label: '2 (ค่อนข้างยุ่งยาก)' }, { val: 3, label: '3 (ปานกลาง)' }, { val: 4, label: '4 (ง่าย)' }, { val: 5, label: '5 (ง่ายมาก)' }] },
+  { id: 'q2', text: 'คุณรู้สึกว่าระบบสื่อสารกับคุณได้ "ชัดเจน" เพียงใด (เช่น คำสั่งเข้าใจง่าย, รูปภาพชัดเจน)?', options: [{ val: 0, label: '0 (ไม่ชัดเจนเลย)' }, { val: 1, label: '1 (ชัดเจนน้อยมาก)' }, { val: 2, label: '2 (ชัดเจนน้อย)' }, { val: 3, label: '3 (ชัดเจนปานกลาง)' }, { val: 4, label: '4 (ชัดเจนดี)' }, { val: 5, label: '5 (ชัดเจนแจ่มแจ้ง)' }] },
+  { id: 'q3', text: 'คุณรู้สึกว่า "เวลา" ที่ใช้ไปในการยืนยันตัวตนเหมาะสมหรือไม่?', options: [{ val: 0, label: '0 (ยอมรับไม่ได้เลย)' }, { val: 1, label: '1 (ยอมรับได้ยากมาก)' }, { val: 2, label: '2 (ไม่จำเป็นจะไม่ใช้)' }, { val: 3, label: '3 (ปานกลาง)' }, { val: 4, label: '4 (ยอมรับได้ดี)' }, { val: 5, label: '5 (สมบูรณ์แบบ)' }] },
+  { id: 'q4', text: 'คุณมีความมั่นใจใน "ความปลอดภัย" ของระบบนี้มากน้อยเพียงใด?', options: [{ val: 0, label: '0 (ไม่น่าเชื่อถือเลย)' }, { val: 1, label: '1 (ไม่ค่อยปลอดภัย)' }, { val: 2, label: '2 (เฉยๆ/ไม่แน่ใจ)' }, { val: 3, label: '3 (ค่อนข้างปลอดภัย)' }, { val: 4, label: '4 (ปลอดภัยมาก)' }, { val: 5, label: '5 (มั่นใจสูงสุด)' }] },
+  { id: 'q5', text: 'หากเว็บไซต์ที่คุณต้องใช้งานเป็นประจำใช้ต้องยืนยันตัวตนรูปแบบนี้ทุกครั้ง คุณยังต้องการใช้งานเว็บไซต์นี้ต่อไปหรือไม่?', options: [{ val: 0, label: '0 (เลิกใช้งานทันที)' }, { val: 1, label: '1 (มีแนวโน้มจะเลิกใช้)' }, { val: 2, label: '2 (รู้สึกรำคาญ)' }, { val: 3, label: '3 (ใช้งานได้ตามปกติ)' }, { val: 4, label: '4 (ใช้งานต่อได้อย่างสบายใจ)' }, { val: 5, label: '5 (ใช้งานต่อแน่นอน)' }] },
 ];
 
-// --- 🛡️ Optimization 1: Memoized Question Block + แก้บั๊ก iOS Safari ---
 const QuestionBlock = memo(({ q, index, currentAnswer, onChange }: any) => {
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 sm:p-8 border border-gray-200">
@@ -78,7 +36,7 @@ const QuestionBlock = memo(({ q, index, currentAnswer, onChange }: any) => {
               <label 
                 htmlFor={uniqueId}
                 className="text-base sm:text-sm text-gray-600 text-left sm:text-center group-hover:text-gray-900 cursor-pointer select-none w-full"
-                onClick={() => {}} // 🟢 Hack สำหรับ iOS
+                onClick={() => {}}
               >
                 {opt.label}
               </label>
@@ -91,7 +49,6 @@ const QuestionBlock = memo(({ q, index, currentAnswer, onChange }: any) => {
 });
 QuestionBlock.displayName = 'QuestionBlock';
 
-// --- 🛡️ Optimization 2: แยก Demographic ออกมาและทำ Memo ---
 const DemographicBlock = memo(({ demographics, onChange }: any) => {
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 sm:p-8 border border-gray-200">
@@ -106,8 +63,9 @@ const DemographicBlock = memo(({ demographics, onChange }: any) => {
           name="ageGroup" 
           value={demographics.ageGroup} 
           onChange={onChange} 
-          className="mt-1 block w-full pl-3 pr-10 py-3 text-base text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 sm:text-sm cursor-pointer"
-          style={{ WebkitAppearance: 'none' }} // 🟢 ลบสไตล์แปลกๆ ของ Safari ออกเพื่อให้กดง่ายขึ้น
+          // 🟢 CSS Fix สำหรับ Mobile: ป้องกันการค้างจังหวะเปิด/ปิด
+          className="mt-1 block w-full pl-3 pr-10 py-3 text-base text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 cursor-pointer touch-manipulation"
+          style={{ WebkitAppearance: 'none' }}
         >
           <option value="" disabled>-- กรุณาเลือกช่วงอายุ --</option>
           <option value="Under 18">ต่ำกว่า 18 ปี</option>
@@ -122,7 +80,6 @@ const DemographicBlock = memo(({ demographics, onChange }: any) => {
         <label className="block text-lg font-medium text-gray-900 mb-3">เพศของคุณ <span className="text-red-500">*</span></label>
         <div className="space-y-4">
           {['Male', 'Female', 'Prefer not to say', 'Other'].map((g) => {
-            // 🟢 สร้าง ID เฉพาะสำหรับจับคู่ Input กับ Label
             const uniqueId = `gender-${g.replace(/\s+/g, '-')}`; 
             return (
               <div key={g} className="flex items-center">
@@ -133,13 +90,13 @@ const DemographicBlock = memo(({ demographics, onChange }: any) => {
                   value={g} 
                   checked={demographics.gender === g} 
                   onChange={onChange} 
-                  className="w-6 h-6 text-green-600 border border-gray-300 focus:ring-green-500 mr-3 cursor-pointer" 
-                  style={{ WebkitTapHighlightColor: 'transparent' }} // 🟢 ปิดกล่องเทาๆ เวลากดบน iOS
+                  className="w-6 h-6 text-green-600 border border-gray-300 focus:ring-green-500 mr-3 cursor-pointer touch-manipulation" 
+                  style={{ WebkitTapHighlightColor: 'transparent' }} 
                 />
                 <label 
                   htmlFor={uniqueId} 
-                  className="text-gray-700 cursor-pointer select-none text-base"
-                  onClick={() => {}} // 🟢 iOS Safari Hack: บังคับให้ Label ทำงานทันทีเมื่อโดนสัมผัส
+                  className="text-gray-700 cursor-pointer select-none text-base touch-manipulation"
+                  onClick={() => {}} 
                 >
                   {g === 'Male' ? 'ชาย (Male)' : g === 'Female' ? 'หญิง (Female)' : g === 'Other' ? 'อื่นๆ' : 'ไม่ต้องการตอบ'}
                 </label>
@@ -167,6 +124,9 @@ DemographicBlock.displayName = 'DemographicBlock';
 export default function SurveyPage() {
   const router = useRouter();
   
+  // ⭐ 2. เรียกใช้ useTransition เพื่อจัดการการเรนเดอร์ที่ไม่เร่งด่วน
+  const [isPending, startTransition] = useTransition();
+  
   const [isAdaptivePhase, setIsAdaptivePhase] = useState(false);
   const [isCheckingMode, setIsCheckingMode] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -190,14 +150,21 @@ export default function SurveyPage() {
     setIsCheckingMode(false);
   }, []);
 
+  // --- 🛡️ การจัดการ Radio Button แบบลดการกระตุก ---
   const handleOptionChange = useCallback((questionId: string, value: number) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+    // ใช้ Transition เพื่อบอก React ว่าการเปลี่ยนปุ่ม Radio ไม่ต้องรีบขนาดบล็อกหน้าจอ
+    startTransition(() => {
+      setAnswers((prev) => ({ ...prev, [questionId]: value }));
+    });
   }, []); 
 
-  // --- 🛡️ Optimization 3: หุ้ม useCallback ให้ฟังก์ชันจัดการ Demographic ---
+  // --- 🛡️ การจัดการ Dropdown แบบลดการกระตุก ---
   const handleDemographicChange = useCallback((e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
-    setDemographics((prev) => ({ ...prev, [name]: value }));
+    // ใช้ Transition เพื่อไม่ให้การอัปเดต state ไปชนกับจังหวะที่ UI กำลังปิดตัวลง
+    startTransition(() => {
+      setDemographics((prev) => ({ ...prev, [name]: value }));
+    });
   }, []);
 
   const isSurveyAnswered = Object.values(answers).every((val) => val !== null);
@@ -286,7 +253,6 @@ export default function SurveyPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           
-          {/* เรียกใช้ Component ที่แยกออกมา */}
           {!isAdaptivePhase && (
             <DemographicBlock 
               demographics={demographics} 
@@ -307,9 +273,9 @@ export default function SurveyPage() {
           <div className="flex justify-end pt-4 pb-12">
             <button 
               type="submit" 
-              disabled={!isAllAnswered || isSubmitting} 
+              disabled={!isAllAnswered || isSubmitting || isPending} // ป้องกันการกดเบิ้ลจังหวะ Render
               className={`px-8 py-3 rounded-md text-white font-medium text-lg transition-all duration-300 shadow-sm flex items-center gap-3
-                ${(!isAllAnswered || isSubmitting) 
+                ${(!isAllAnswered || isSubmitting || isPending) 
                   ? 'bg-gray-300 opacity-60 cursor-not-allowed scale-95' 
                   : 'bg-green-600 hover:bg-green-700 active:scale-95' 
                 }`}
