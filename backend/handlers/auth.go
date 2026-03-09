@@ -164,7 +164,8 @@ type LockoutInfo struct {
 	LockoutEnd time.Time
 }
 
-var LoginLockoutCache sync.Map
+var LoginLockoutCache = make(map[string]LockoutInfo)
+var lockoutMutex sync.Mutex
 
 // RegisterHandler
 func RegisterHandler(c *gin.Context) {
@@ -227,17 +228,19 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	if val, ok := LoginLockoutCache.Load(creds.Username); ok {
-		info := val.(LockoutInfo)
-		// ถ้าย้อนเวลาไปดูแล้วยังไม่หมดเวลาล็อค
+	// Move the lockout check to the very top.
+	lockoutMutex.Lock()
+	if info, ok := LoginLockoutCache[creds.Username]; ok {
 		if time.Now().Before(info.LockoutEnd) {
 			timeLeft := int(time.Until(info.LockoutEnd).Minutes()) + 1
+			lockoutMutex.Unlock()
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"error": fmt.Sprintf("กรอกรหัสผิดเกินกำหนด บัญชีถูกระงับชั่วคราว กรุณาลองใหม่ในอีก %d นาที", timeLeft),
 			})
 			return
 		}
 	}
+	lockoutMutex.Unlock()
 
 	var user database.User
 	if err := database.DB.Where("username = ?", creds.Username).First(&user).Error; err != nil {
@@ -246,34 +249,32 @@ func LoginHandler(c *gin.Context) {
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(creds.Password)); err != nil {
-		attempts := 1
-
-		// ดึงประวัติเดิมมาดูว่าผิดไปกี่รอบแล้ว
-		if val, ok := LoginLockoutCache.Load(creds.Username); ok {
-			info := val.(LockoutInfo)
-			// ถ้าเคยโดนล็อคแล้วเวลาหมดไปแล้ว ให้เริ่มนับ 1 ใหม่
-			if time.Now().After(info.LockoutEnd) {
-				attempts = 1
-			} else {
-				attempts = info.Attempts + 1
-			}
+		// When a password check fails:
+		lockoutMutex.Lock()
+		info, ok := LoginLockoutCache[creds.Username]
+		if !ok || time.Now().After(info.LockoutEnd) {
+			// If no record exists OR the previous lockout period has expired, reset/start from 1
+			info = LockoutInfo{Attempts: 1}
+		} else {
+			info.Attempts++
 		}
 
-		lockoutEnd := time.Time{}
-		// 🚨 ตั้งค่า: ผิด 3 ครั้ง ล็อค 5 นาที (แก้ตัวเลขตรงนี้ได้เลย)
-		if attempts >= 5 {
-			lockoutEnd = time.Now().Add(3 * time.Minute)
+		// If attempts >= 5, calculate the new LockoutEnd based on the incremental formula.
+		if info.Attempts >= 5 {
+			// Duration = (Attempts - 4) * 1 minutes
+			durationMinutes := info.Attempts - 4
+			info.LockoutEnd = time.Now().Add(time.Duration(durationMinutes) * time.Minute)
 		}
 
-		// อัปเดตข้อมูลลง Cache
-		LoginLockoutCache.Store(creds.Username, LockoutInfo{
-			Attempts:   attempts,
-			LockoutEnd: lockoutEnd,
-		})
+		// Store back to cache and Unlock.
+		LoginLockoutCache[creds.Username] = info
+		lockoutMutex.Unlock()
 
-		// ส่ง Error กลับไปหา Frontend
-		if attempts >= 3 {
-			c.JSON(http.StatusTooManyRequests, gin.H{"error": "กรอกรหัสผิดเกิน 3 ครั้ง บัญชีถูกระงับ 5 นาที"})
+		if info.Attempts >= 5 {
+			timeLeft := int(time.Until(info.LockoutEnd).Minutes()) + 1
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error": fmt.Sprintf("กรอกรหัสผิดเกินกำหนด บัญชีถูกระงับชั่วคราว กรุณาลองใหม่ในอีก %d นาที", timeLeft),
+			})
 			return
 		}
 
@@ -281,7 +282,10 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	LoginLockoutCache.Delete(creds.Username)
+	// If password is correct, Delete from cache.
+	lockoutMutex.Lock()
+	delete(LoginLockoutCache, creds.Username)
+	lockoutMutex.Unlock()
 
 	experimentMode := creds.ExperimentMode
 	if experimentMode == "" {
