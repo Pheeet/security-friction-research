@@ -121,6 +121,26 @@ const DemographicBlock = memo(({ demographics, onChange }: any) => {
 });
 DemographicBlock.displayName = 'DemographicBlock';
 
+// 🚀 Optimization: Memoized Survey Questions List
+// สิ่งนี้จะช่วยให้ React ข้ามการ Re-render ชุดคำถามทั้งหมด (30+ nodes) 
+// เมื่อมีการอัปเดต Demographic state เพียงอย่างเดียว
+const SurveyQuestionsList = memo(({ questions, answers, handleOptionChange }: any) => {
+  return (
+    <>
+      {questions.map((q: any, index: number) => (
+        <QuestionBlock 
+          key={q.id}
+          q={q}
+          index={index}
+          currentAnswer={answers[q.id]}
+          onChange={handleOptionChange}
+        />
+      ))}
+    </>
+  );
+});
+SurveyQuestionsList.displayName = 'SurveyQuestionsList';
+
 export default function SurveyPage() {
   const router = useRouter();
   
@@ -167,11 +187,18 @@ export default function SurveyPage() {
     });
   }, []);
 
-  const isSurveyAnswered = Object.values(answers).every((val) => val !== null);
-  const isDemographicsAnswered = 
+  // 🚀 Optimization: ใช้ useMemo สำหรับการตรวจสอบความครบถ้วนของข้อมูล
+  const isSurveyAnswered = React.useMemo(() => 
+    Object.values(answers).every((val) => val !== null),
+    [answers]
+  );
+
+  const isDemographicsAnswered = React.useMemo(() => 
     demographics.ageGroup !== '' && 
     demographics.gender !== '' && 
-    (demographics.gender !== 'Other' || demographics.otherGenderInput.trim() !== '');
+    (demographics.gender !== 'Other' || demographics.otherGenderInput.trim() !== ''),
+    [demographics]
+  );
 
   const isAllAnswered = isSurveyAnswered && (isAdaptivePhase || isDemographicsAnswered);
 
@@ -260,15 +287,11 @@ export default function SurveyPage() {
             />
           )}
 
-          {surveyQuestions.map((q, index) => (
-            <QuestionBlock 
-              key={q.id}
-              q={q}
-              index={index}
-              currentAnswer={answers[q.id]}
-              onChange={handleOptionChange}
-            />
-          ))}
+          <SurveyQuestionsList 
+            questions={surveyQuestions}
+            answers={answers}
+            handleOptionChange={handleOptionChange}
+          />
 
           <div className="flex justify-end pt-4 pb-12">
             <button 
