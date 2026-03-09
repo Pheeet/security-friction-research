@@ -14,7 +14,15 @@ const surveyQuestions = [
 
 const QuestionBlock = memo(({ q, index, currentAnswer, onChange }: any) => {
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6 sm:p-8 border border-gray-200">
+    <div 
+      className="bg-white rounded-lg shadow-sm p-6 sm:p-8 border border-gray-200"
+      style={{ 
+        transform: 'translateZ(0)', 
+        willChange: 'transform', 
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden'
+      }}
+    >
       <h2 className="text-lg font-medium text-gray-900 mb-6">
         {index + 1}. {q.text} <span className="text-red-500">*</span>
       </h2>
@@ -51,7 +59,15 @@ QuestionBlock.displayName = 'QuestionBlock';
 
 const DemographicBlock = memo(({ demographics, onChange }: any) => {
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6 sm:p-8 border border-gray-200">
+    <div 
+      className="bg-white rounded-lg shadow-sm p-6 sm:p-8 border border-gray-200"
+      style={{ 
+        transform: 'translateZ(0)', 
+        willChange: 'transform', 
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden'
+      }}
+    >
       <h2 className="text-xl font-semibold text-gray-900 mb-6 border-b pb-2">ข้อมูลทั่วไป</h2>
 
       <div className="mb-6">
@@ -64,7 +80,7 @@ const DemographicBlock = memo(({ demographics, onChange }: any) => {
           value={demographics.ageGroup} 
           onChange={onChange} 
           // 🟢 CSS Fix สำหรับ Mobile: ป้องกันการค้างจังหวะเปิด/ปิด
-          className="mt-1 block w-full pl-3 pr-10 py-3 text-base text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 cursor-pointer touch-manipulation"
+          className="mt-1 block w-full pl-3 pr-10 py-3 text-base text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 cursor-pointer touch-manipulation appearance-none transform-gpu"
           style={{ WebkitAppearance: 'none' }}
         >
           <option value="" disabled>-- กรุณาเลือกช่วงอายุ --</option>
