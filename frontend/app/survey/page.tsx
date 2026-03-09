@@ -53,38 +53,35 @@ const surveyQuestions = [
   },
 ];
 
-// --- 🛡️ Optimization 1: Memoized Question Block + แก้บั๊ก iOS Safari ---
+// --- 🛡️ Super Optimized Question Block ---
 const QuestionBlock = memo(({ q, index, currentAnswer, onChange }: any) => {
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6 sm:p-8 border border-gray-200">
+    // เอา contentVisibility ออก แล้วใส่ transform-gpu เพื่อบังคับให้มือถือใช้การ์ดจอประมวลผล UI แผนกนี้แทน CPU
+    <div className="bg-white rounded-lg shadow-sm p-6 sm:p-8 border border-gray-200 mb-6 transform-gpu">
       <h2 className="text-lg font-medium text-gray-900 mb-6">
         {index + 1}. {q.text} <span className="text-red-500">*</span>
       </h2>
       <div className="flex flex-col sm:flex-row sm:justify-between space-y-4 sm:space-y-0">
-        {q.options.map((opt: any) => {
-          const uniqueId = `${q.id}-${opt.val}`;
-          return (
-            <div key={uniqueId} className="flex sm:flex-col items-center group">
-              <input 
-                id={uniqueId}
-                type="radio" 
-                name={q.id} 
-                value={opt.val} 
-                checked={currentAnswer === opt.val} 
-                onChange={() => onChange(q.id, opt.val)} 
-                className="w-6 h-6 sm:w-5 sm:h-5 text-green-600 border border-gray-300 focus:ring-green-500 mr-3 sm:mr-0 sm:mb-2 cursor-pointer" 
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              />
-              <label 
-                htmlFor={uniqueId}
-                className="text-base sm:text-sm text-gray-600 text-left sm:text-center group-hover:text-gray-900 cursor-pointer select-none w-full"
-                onClick={() => {}} // 🟢 Hack สำหรับ iOS
-              >
-                {opt.label}
-              </label>
-            </div>
-          );
-        })}
+        {q.options.map((opt: any) => (
+          <label 
+            key={`${q.id}-${opt.val}`} 
+            // ใส่ touch-manipulation บังคับปิด delay 300ms ของเบราว์เซอร์มือถือ
+            className="flex sm:flex-col items-center cursor-pointer touch-manipulation"
+          >
+            <input 
+              type="radio" 
+              name={q.id} 
+              value={opt.val}
+              checked={currentAnswer === opt.val} 
+              // ใช้ onChange แบบตรงไปตรงมาเพื่อลด Overhead
+              onChange={() => onChange(q.id, opt.val)} 
+              // ลบ class transition ออก เพื่อให้จุดสีเขียวโผล่ทันทีไม่ต้องรออนิเมชัน
+              className="w-6 h-6 text-green-600 border border-gray-300 focus:ring-green-500 mr-3 sm:mr-0 sm:mb-2 transition-none" 
+            />
+            {/* เอา group-hover ออก ลดการกินสเปคมือถือตอนเอานิ้วแตะ */}
+            <span className="text-sm text-gray-600 text-center">{opt.label}</span>
+          </label>
+        ))}
       </div>
     </div>
   );
