@@ -228,10 +228,10 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// Move the lockout check to the very top.
+	// 1. Top-level Check: Lock Mutex, check if user is currently locked out.
 	lockoutMutex.Lock()
 	if info, ok := LoginLockoutCache[creds.Username]; ok {
-		if time.Now().Before(info.LockoutEnd) {
+		if !info.LockoutEnd.IsZero() && time.Now().Before(info.LockoutEnd) {
 			timeLeftSeconds := int(time.Until(info.LockoutEnd).Seconds())
 			timeLeftMinutes := (timeLeftSeconds / 60) + 1
 			lockoutMutex.Unlock()
@@ -244,26 +244,36 @@ func LoginHandler(c *gin.Context) {
 	}
 	lockoutMutex.Unlock()
 
+	// 2. Validate Credentials: Perform BOTH the Username lookup and Password bcrypt check.
 	var user database.User
+	var authErr error
+
+	// Lookup user
 	if err := database.DB.Where("username = ?", creds.Username).First(&user).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"})
-		return
+		authErr = err
+	} else {
+		// If user exists, check password
+		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(creds.Password)); err != nil {
+			authErr = err
+		}
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(creds.Password)); err != nil {
-		// When a password check fails:
+	// 3. Handle Failure (If either User OR Password fails)
+	if authErr != nil {
 		lockoutMutex.Lock()
 		info, ok := LoginLockoutCache[creds.Username]
-		if !ok || time.Now().After(info.LockoutEnd) {
-			// If no record exists OR the previous lockout period has expired, reset/start from 1
+
+		if !ok {
+			info = LockoutInfo{Attempts: 1}
+		} else if !info.LockoutEnd.IsZero() && time.Now().After(info.LockoutEnd) {
+			// If previous lockout period has expired, reset
 			info = LockoutInfo{Attempts: 1}
 		} else {
 			info.Attempts++
 		}
 
-		// If attempts >= 5, calculate the new LockoutEnd based on the incremental formula.
+		// If Attempts >= 5, calculate LockoutEnd
 		if info.Attempts >= 5 {
-			// Duration = (Attempts - 4) * 1 minutes
 			durationMinutes := info.Attempts - 4
 			info.LockoutEnd = time.Now().Add(time.Duration(durationMinutes) * time.Minute)
 		}
@@ -272,6 +282,7 @@ func LoginHandler(c *gin.Context) {
 		LoginLockoutCache[creds.Username] = info
 		lockoutMutex.Unlock()
 
+		// If Attempts >= 5, return 429
 		if info.Attempts >= 5 {
 			timeLeftSeconds := int(time.Until(info.LockoutEnd).Seconds())
 			timeLeftMinutes := (timeLeftSeconds / 60) + 1
@@ -282,11 +293,12 @@ func LoginHandler(c *gin.Context) {
 			return
 		}
 
+		// Else return 401
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"})
 		return
 	}
 
-	// If password is correct, Delete from cache.
+	// 4. Handle Success: Lock Mutex, delete from cache, Unlock.
 	lockoutMutex.Lock()
 	delete(LoginLockoutCache, creds.Username)
 	lockoutMutex.Unlock()
