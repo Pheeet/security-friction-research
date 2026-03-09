@@ -247,7 +247,7 @@ func LoginHandler(c *gin.Context) {
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(creds.Password)); err != nil {
 		attempts := 1
-		
+
 		// ดึงประวัติเดิมมาดูว่าผิดไปกี่รอบแล้ว
 		if val, ok := LoginLockoutCache.Load(creds.Username); ok {
 			info := val.(LockoutInfo)
@@ -261,8 +261,8 @@ func LoginHandler(c *gin.Context) {
 
 		lockoutEnd := time.Time{}
 		// 🚨 ตั้งค่า: ผิด 3 ครั้ง ล็อค 5 นาที (แก้ตัวเลขตรงนี้ได้เลย)
-		if attempts >= 3 {
-			lockoutEnd = time.Now().Add(5 * time.Minute) 
+		if attempts >= 5 {
+			lockoutEnd = time.Now().Add(3 * time.Minute)
 		}
 
 		// อัปเดตข้อมูลลง Cache
