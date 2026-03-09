@@ -232,10 +232,12 @@ func LoginHandler(c *gin.Context) {
 	lockoutMutex.Lock()
 	if info, ok := LoginLockoutCache[creds.Username]; ok {
 		if time.Now().Before(info.LockoutEnd) {
-			timeLeft := int(time.Until(info.LockoutEnd).Minutes()) + 1
+			timeLeftSeconds := int(time.Until(info.LockoutEnd).Seconds())
+			timeLeftMinutes := (timeLeftSeconds / 60) + 1
 			lockoutMutex.Unlock()
 			c.JSON(http.StatusTooManyRequests, gin.H{
-				"error": fmt.Sprintf("กรอกรหัสผิดเกินกำหนด บัญชีถูกระงับชั่วคราว กรุณาลองใหม่ในอีก %d นาที", timeLeft),
+				"error":           fmt.Sprintf("กรอกรหัสผิดเกินกำหนด บัญชีถูกระงับชั่วคราว กรุณาลองใหม่ในอีก %d นาที", timeLeftMinutes),
+				"lockout_seconds": timeLeftSeconds,
 			})
 			return
 		}
@@ -271,9 +273,11 @@ func LoginHandler(c *gin.Context) {
 		lockoutMutex.Unlock()
 
 		if info.Attempts >= 5 {
-			timeLeft := int(time.Until(info.LockoutEnd).Minutes()) + 1
+			timeLeftSeconds := int(time.Until(info.LockoutEnd).Seconds())
+			timeLeftMinutes := (timeLeftSeconds / 60) + 1
 			c.JSON(http.StatusTooManyRequests, gin.H{
-				"error": fmt.Sprintf("กรอกรหัสผิดเกินกำหนด บัญชีถูกระงับชั่วคราว กรุณาลองใหม่ในอีก %d นาที", timeLeft),
+				"error":           fmt.Sprintf("กรอกรหัสผิดเกินกำหนด บัญชีถูกระงับชั่วคราว กรุณาลองใหม่ในอีก %d นาที", timeLeftMinutes),
+				"lockout_seconds": timeLeftSeconds,
 			})
 			return
 		}

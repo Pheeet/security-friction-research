@@ -206,11 +206,16 @@ export default function LoginPage() {
     
             // ⭐ ถ้า Backend ส่ง Status 429 (Too Many Requests) มา
             if (res.status === 429) {
-                // พยายามดึงตัวเลขนาทีจากข้อความ (เช่น "อีก 5 นาที")
-                const match = data.error.match(/\d+/);
-                const minutes = match ? parseInt(match[0], 10) : 5;
+                // ⭐ Priority: use precise seconds from backend, fallback to regex if needed
+                let seconds = data.lockout_seconds;
                 
-                setLockoutTimer(minutes * 60); // แปลงเป็นวินาทีเพื่อใช้นับถอยหลัง
+                if (seconds === undefined) {
+                    const match = data.error.match(/\d+/);
+                    const minutes = match ? parseInt(match[0], 10) : 5;
+                    seconds = minutes * 60;
+                }
+                
+                setLockoutTimer(seconds); // Use precise seconds
                 setIsLocked(true);
             }
             setIsAnalyzing(false);
